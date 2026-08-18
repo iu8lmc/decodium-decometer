@@ -43,6 +43,11 @@ class MeterBridge : public QObject
     Q_PROPERTY(double rigRos READ rigRos NOTIFY rigCtlChanged)
     Q_PROPERTY(bool meterVeri READ meterVeri NOTIFY rigCtlChanged)
 
+    // Schermo sempre acceso: un misuratore che si spegne da solo mentre si
+    // trasmette non e' un misuratore. E' il flag della finestra
+    // (FLAG_KEEP_SCREEN_ON), che Android rilascia da se' quando l'app va in
+    // background: non puo' restare incastrato.
+    Q_PROPERTY(bool keepScreenOn READ keepScreenOn WRITE setKeepScreenOn NOTIFY keepScreenOnChanged)
     Q_PROPERTY(QString lastHost READ lastHost NOTIFY lastEndpointChanged)
     Q_PROPERTY(int lastPort READ lastPort NOTIFY lastEndpointChanged)
 
@@ -63,6 +68,9 @@ public:
     double rigRos() const { return m_rigRos; }
     bool meterVeri() const { return m_meterVeri; }
 
+    bool keepScreenOn() const { return m_keepScreenOn; }
+    void setKeepScreenOn(bool on);
+
     QString lastHost() const { return m_lastHost; }
     int lastPort() const { return m_lastPort; }
 
@@ -72,6 +80,7 @@ public slots:
     void catDisconnect();
 
 signals:
+    void keepScreenOnChanged();
     void catChanged();
     void rigCtlChanged();
     void txActiveChanged();
@@ -79,17 +88,24 @@ signals:
 
 private slots:
     void onCatReadyRead();
-    void onPttPoll();
+    void onPoll();
 
 private:
     void parseCatLines(const QByteArray& data);
     void setPttState(bool active);
     void resetTxMeters();
+    void applyKeepScreenOn();
 
     QTcpSocket* m_cat {nullptr};
     QByteArray m_catBuf;
-    QTimer m_pttPoll;             // interroga "t" (PTT) ogni secondo: e' quello che decide se chiedere i livelli
-    QTimer m_levelPoll;           // interroga i tre \get_level SOLO mentre il PTT e' attivo
+    // UN SOLO ciclo veloce, non due. La prima versione interrogava il PTT una
+    // volta al secondo e solo DOPO averlo visto alto cominciava a chiedere i
+    // livelli: fino a 1,35 s fra il momento in cui si premeva il tasto e il
+    // momento in cui l'ago si muoveva. Su uno strumento che serve a guardare
+    // la potenza MENTRE si trasmette, un ritardo simile lo rende inutile.
+    // Il server risponde in circa 3 ms e legge da memoria senza toccare la
+    // seriale, quindi chiedere tutto insieme e spesso non costa quasi nulla.
+    QTimer m_poll;
 
     bool m_catConnected {false};
     QString m_catStatus;
@@ -102,6 +118,7 @@ private:
     bool m_meterVeri {false};
     QString m_livelloAtteso;      // nome del livello di cui si aspetta "Level Value:"
 
+    bool m_keepScreenOn {true};
     QString m_lastHost;
     int m_lastPort {4533};
     QSettings m_settings;

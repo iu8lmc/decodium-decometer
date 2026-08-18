@@ -1,0 +1,116 @@
+name: iOS (IPA non firmato)
+
+# Compila Decometer per iPhone e iPad su un runner macOS e pubblica un IPA
+# NON FIRMATO. La firma qui non si puo' fare: i certificati "Personal Team" li
+# emette solo Xcode con login interattivo e 2FA. L'IPA si firma a valle sul PC
+# con Sideloadly o SideStore usando un Apple ID gratuito (l'app dura 7 giorni),
+# oppure si apre il progetto in Xcode su un Mac con un account Developer.
+#
+# Rispetto al workflow gemello di decodium-mobile qui non c'e' niente da
+# precompilare: nessun core del decoder, nessun FFTW, nessun Boost, nessun
+# Opus. Decometer e' Qt e basta, quindi il lavoro si riduce a installare Qt e
+# compilare — pochi minuti invece di un'ora.
+#
+# Avvio MANUALE (Actions -> iOS -> Run workflow): i minuti dei runner macOS
+# contano dieci volte, quindi non si builda a ogni push.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: '6.6.3'
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Xcode
+        run: xcodebuild -version
+
+      # Il kit host serve per moc, rcc e qmlimportscanner; quello iOS per il
+      # target vero e proprio. Nessun modulo extra: bastano i moduli base piu'
+      # qtshadertools, che qt_add_qml_module si aspetta di trovare.
+      - name: Qt ${{ env.QT_VERSION }} (host macOS)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: qtshadertools
+          dir: ${{ github.workspace }}/Qt
+          cache: true
+
+      - name: Qt ${{ env.QT_VERSION }} (iOS)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: ios
+          modules: qtshadertools
+          dir: ${{ github.workspace }}/Qt
+          cache: true
+
+      - name: Individua i kit Qt
+        run: |
+          QT_IOS=$(find "$GITHUB_WORKSPACE/Qt" -maxdepth 4 -type d -name ios | head -1)
+          QT_HOST=$(find "$GITHUB_WORKSPACE/Qt" -maxdepth 4 -type d -name macos | head -1)
+          [ -x "$QT_IOS/bin/qt-cmake" ] || { echo "qt-cmake iOS non trovato"; exit 1; }
+          echo "QT_IOS=$QT_IOS"   >> $GITHUB_ENV
+          echo "QT_HOST=$QT_HOST" >> $GITHUB_ENV
+          echo "iOS : $QT_IOS"
+          echo "host: $QT_HOST"
+
+      - name: Configura
+        run: |
+          mkdir -p build/ios && cd build/ios
+          "$QT_IOS/bin/qt-cmake" -G Xcode \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DQT_HOST_PATH="$QT_HOST" \
+            "$GITHUB_WORKSPACE"
+
+      - name: Compila (senza firma)
+        run: |
+          cd build/ios
+          cmake --build . --config Release -- \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
+            EXPANDED_CODE_SIGN_IDENTITY=""
+
+      # Payload/ + zip e' il formato che si aspettano Sideloadly e SideStore.
+      - name: Impacchetta IPA
+        run: |
+          APP=$(find "$GITHUB_WORKSPACE/build/ios" -type d -name '*.app' -path '*Release-iphoneos*' | head -1)
+          [ -n "$APP" ] || { echo ".app non trovata"; exit 1; }
+          echo "App: $APP"
+          rm -rf out && mkdir -p out/Payload
+          cp -R "$APP" out/Payload/
+          cd out && zip -qry "Decometer-unsigned.ipa" Payload
+          ls -lh Decometer-unsigned.ipa
+          # Senza CFBundleExecutable l'app non si avvia e senza
+          # CFBundleIdentifier gli strumenti di firma si rifiutano: meglio
+          # accorgersene qui che davanti all'iPhone collegato.
+          PL="Payload/decometer.app/Info.plist"
+          bad=0
+          for k in CFBundleExecutable CFBundleIdentifier; do
+            v=$(/usr/libexec/PlistBuddy -c "Print :$k" "$PL" 2>/dev/null || true)
+            echo "$k: ${v:-(assente)}"
+            [ -n "$v" ] || bad=1
+          done
+          [ $bad -eq 0 ] || { echo "Info.plist incompleto: l'IPA non sarebbe installabile."; exit 1; }
+
+      - name: Pubblica l'artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Decometer-ios-unsigned
+          path: out/Decometer-unsigned.ipa
+          retention-days: 14

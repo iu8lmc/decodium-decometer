@@ -123,5 +123,20 @@ ApplicationWindow {
             ingranditoDisponibile: false
             onChiudiIntero: win.showSettings = true
         }
+
+        // Via d'uscita quando il collegamento non c'e'. Il tasto del frontalino
+        // e' minuscolo e sta in un angolo: con un indirizzo sbagliato ci si
+        // ritrovava davanti a un quadrante spento, senza un modo evidente di
+        // tornare a correggerlo. Questo compare SOLO quando serve davvero, e
+        // sparisce appena la radio risponde, per non rubare spazio allo
+        // strumento mentre si trasmette.
+        Button {
+            visible: !bridge.catConnected
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 28
+            text: qsTr("Impostazioni di rete")
+            onClicked: win.showSettings = true
+        }
     }
 }

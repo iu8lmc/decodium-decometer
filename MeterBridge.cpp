@@ -2,6 +2,16 @@
 
 #include <QTcpSocket>
 
+#if defined(Q_OS_ANDROID)
+#include <QJniObject>
+#include <QtCore/private/qandroidextras_p.h>
+#include <QGuiApplication>
+#endif
+
+#if defined(Q_OS_IOS)
+void iosSetIdleTimerDisabled(bool disabled);
+#endif
+
 MeterBridge::MeterBridge(QObject* parent)
     : QObject(parent)
     , m_settings(QStringLiteral("Decodium"), QStringLiteral("Decometer"))
@@ -9,27 +19,26 @@ MeterBridge::MeterBridge(QObject* parent)
     m_lastHost = m_settings.value(QStringLiteral("catHost")).toString();
     m_lastPort = m_settings.value(QStringLiteral("catPort"), 4533).toInt();
     m_rigMetersOn = m_settings.value(QStringLiteral("rigMetersOn"), true).toBool();
+    m_keepScreenOn = m_settings.value(QStringLiteral("keepScreenOn"), true).toBool();
     m_catStatus = tr("CAT non connesso");
 
-    // Il PTT si interroga sempre, ogni secondo: e' l'unico modo di sapere
-    // quando cominciare (e smettere) a chiedere i tre misuratori. Chiederli
-    // anche a riposo saturerebbe il server per niente: a riposo non
-    // misurano nulla, e il server condiviso lo dice gia' da solo (RPRT -11).
-    m_pttPoll.setInterval(1000);
-    connect(&m_pttPoll, &QTimer::timeout, this, &MeterBridge::onPttPoll);
+    // Un solo ciclo, e veloce. Il PTT e i tre livelli si chiedono INSIEME, in
+    // una sola scrittura: cosi' fra il momento in cui parte la portante e il
+    // momento in cui l'ago si muove passa il tempo di un giro, non la somma
+    // di due attese. La prima versione interrogava il PTT una volta al
+    // secondo e solo DOPO averlo visto alto cominciava a chiedere i livelli:
+    // fino a 1,35 s di ritardo, che su uno strumento da guardare MENTRE si
+    // trasmette lo rende inutile.
+    //
+    // Interrogare spesso non costa: il server legge dalla propria memoria e
+    // risponde in circa 3 ms senza toccare la seriale della radio.
+    //
+    // 150 ms e' scelto per l'occhio: sotto questa soglia il movimento
+    // dell'ago si legge come continuo, sopra comincia a sembrare a scatti.
+    m_poll.setInterval(150);
+    connect(&m_poll, &QTimer::timeout, this, &MeterBridge::onPoll);
 
-    // I livelli si interrogano piu' spesso SOLO mentre si trasmette: chi
-    // guarda il quadrante durante un over vuole vederlo muoversi, non
-    // aggiornarsi una volta al secondo come la frequenza.
-    m_levelPoll.setInterval(350);
-    connect(&m_levelPoll, &QTimer::timeout, this, [this] {
-        if (!m_catConnected || !m_rigMetersOn || !m_rigPtt) return;
-        if (m_cat && m_cat->state() == QAbstractSocket::ConnectedState) {
-            m_cat->write("+\\get_level RFPOWER_METER_WATTS\n");
-            m_cat->write("+\\get_level SWR\n");
-            m_cat->write("+\\get_level ALC\n");
-        }
-    });
+    applyKeepScreenOn();
 
     // Chi ha gia' collegato una volta si aspetta di riaprire l'app e trovare
     // il quadrante vivo, non una schermata di rete da ricompilare ogni volta:
@@ -46,17 +55,43 @@ MeterBridge::~MeterBridge()
     catDisconnect();
 }
 
+// Schermo sempre acceso finche' l'app e' in primo piano. E' il flag della
+// finestra dell'Activity (FLAG_KEEP_SCREEN_ON), non un wake lock: lo rilascia
+// Android da solo quando l'app va in background, quindi non puo' restare
+// incastrato e non consuma batteria a schermo spento. Va impostato sul thread
+// UI di Android.
+void MeterBridge::applyKeepScreenOn()
+{
+#if defined(Q_OS_IOS)
+    iosSetIdleTimerDisabled(m_keepScreenOn);
+#elif defined(Q_OS_ANDROID)
+    bool const on = m_keepScreenOn;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([on] {
+        QJniObject act = QNativeInterface::QAndroidApplication::context();
+        if (!act.isValid()) return;
+        QJniObject win = act.callObjectMethod("getWindow", "()Landroid/view/Window;");
+        if (!win.isValid()) return;
+        constexpr jint kFlagKeepScreenOn = 128;   // WindowManager.LayoutParams
+        win.callMethod<void>(on ? "addFlags" : "clearFlags", "(I)V", kFlagKeepScreenOn);
+    });
+#endif
+}
+
+void MeterBridge::setKeepScreenOn(bool on)
+{
+    if (m_keepScreenOn == on) return;
+    m_keepScreenOn = on;
+    m_settings.setValue(QStringLiteral("keepScreenOn"), on);
+    applyKeepScreenOn();
+    emit keepScreenOnChanged();
+}
+
 void MeterBridge::setRigMetersOn(bool on)
 {
     if (m_rigMetersOn == on) return;
     m_rigMetersOn = on;
     m_settings.setValue(QStringLiteral("rigMetersOn"), on);
-    if (!on) {
-        m_levelPoll.stop();
-        resetTxMeters();
-    } else if (m_rigPtt && m_catConnected) {
-        m_levelPoll.start();   // riattivato a meta' di un over: riparte subito
-    }
+    if (!on) resetTxMeters();
     emit rigCtlChanged();
 }
 
@@ -76,17 +111,20 @@ void MeterBridge::catConnect(const QString& host, int port)
     emit lastEndpointChanged();
 
     m_cat = new QTcpSocket(this);
+    // Niente attesa di Nagle: i comandi sono corti e vanno spediti adesso, non
+    // quando il buffer si riempie. Su un misuratore quei millisecondi si
+    // vedono.
+    m_cat->setSocketOption(QAbstractSocket::LowDelayOption, 1);
     connect(m_cat, &QTcpSocket::readyRead, this, &MeterBridge::onCatReadyRead);
     connect(m_cat, &QTcpSocket::connected, this, [this, host, port] {
         m_catConnected = true;
         m_catStatus = tr("CAT connesso a %1:%2").arg(host).arg(port);
         emit catChanged();
-        m_pttPoll.start();
-        onPttPoll();          // subito, senza aspettare il primo giro del timer
+        m_poll.start();
+        onPoll();             // subito, senza aspettare il primo giro del timer
     });
     connect(m_cat, &QTcpSocket::disconnected, this, [this] {
-        m_pttPoll.stop();
-        m_levelPoll.stop();
+        m_poll.stop();
         if (m_catConnected) {
             m_catConnected = false;
             m_catStatus = tr("CAT disconnesso");
@@ -95,8 +133,7 @@ void MeterBridge::catConnect(const QString& host, int port)
         }
     });
     connect(m_cat, &QAbstractSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
-        m_pttPoll.stop();
-        m_levelPoll.stop();
+        m_poll.stop();
         m_catConnected = false;
         m_catStatus = tr("CAT errore: %1").arg(m_cat ? m_cat->errorString() : QString());
         resetTxMeters();
@@ -110,10 +147,10 @@ void MeterBridge::catConnect(const QString& host, int port)
 
 void MeterBridge::catDisconnect()
 {
-    m_pttPoll.stop();
-    m_levelPoll.stop();
+    m_poll.stop();
     if (m_cat) { m_cat->abort(); m_cat->deleteLater(); m_cat = nullptr; }
     m_catBuf.clear();
+    m_livelloAtteso.clear();
     if (m_catConnected) {
         m_catConnected = false;
         m_catStatus = tr("CAT non connesso");
@@ -122,9 +159,22 @@ void MeterBridge::catDisconnect()
     }
 }
 
-void MeterBridge::onPttPoll()
+void MeterBridge::onPoll()
 {
-    if (m_cat && m_cat->state() == QAbstractSocket::ConnectedState)
+    if (!m_cat || m_cat->state() != QAbstractSocket::ConnectedState)
+        return;
+
+    // Una sola write con tutto dentro: quattro comandi in un pacchetto invece
+    // di quattro scambi separati. I livelli si chiedono anche a trasmettitore
+    // fermo, e non e' uno spreco: e' proprio cosi' che il primo valore arriva
+    // INSIEME al primo "PTT alto" invece che un giro dopo. A riposo il server
+    // risponde "non disponibile" e la risposta e' di pochi byte.
+    if (m_rigMetersOn)
+        m_cat->write("t\n"
+                     "+\\get_level RFPOWER_METER_WATTS\n"
+                     "+\\get_level SWR\n"
+                     "+\\get_level ALC\n");
+    else
         m_cat->write("t\n");
 }
 
@@ -132,12 +182,7 @@ void MeterBridge::setPttState(bool active)
 {
     if (m_rigPtt == active) return;
     m_rigPtt = active;
-    if (active) {
-        if (m_rigMetersOn) m_levelPoll.start();
-    } else {
-        m_levelPoll.stop();
-        resetTxMeters();
-    }
+    if (!active) resetTxMeters();
     emit rigCtlChanged();
 }
 
@@ -169,12 +214,20 @@ void MeterBridge::parseCatLines(const QByteArray& data)
     while ((nl = m_catBuf.indexOf('\n')) >= 0) {
         QByteArray const line = m_catBuf.left(nl).trimmed();
         m_catBuf.remove(0, nl + 1);
-        if (line.isEmpty() || line.startsWith("RPRT")) continue;   // ack/errore semplice
+        if (line.isEmpty()) continue;
 
-        // Risposte estese di \get_level (fix 1.0.565 sul server condiviso):
-        // due righe, prima il nome del livello e poi il valore. La riga del
-        // valore, da sola, non dice a cosa si riferisce: si tiene da parte
-        // il nome della prima.
+        if (line.startsWith("RPRT")) {
+            // Errore riferito al livello appena annunciato: la misura non c'e'
+            // (a riposo, o perche' la radio non la fornisce). Si dimentica
+            // l'attesa, altrimenti il prossimo valore finirebbe nel campo
+            // sbagliato.
+            m_livelloAtteso.clear();
+            continue;
+        }
+
+        // Risposte estese di \get_level (dal server Decodium 1.0.565): due
+        // righe, prima il nome del livello e poi il valore. La riga del valore,
+        // da sola, non dice a cosa si riferisce: si tiene da parte il nome.
         if (line.startsWith("get_level:")) {
             m_livelloAtteso = QString::fromLatin1(line.mid(10)).trimmed();
             continue;
@@ -194,15 +247,21 @@ void MeterBridge::parseCatLines(const QByteArray& data)
                     m_rigAlc = qBound(0, qRound(val * 255.0), 255); changed = true;
                 }
                 m_meterVeri = true;
-                emit rigCtlChanged();
             }
             m_livelloAtteso.clear();
             continue;
         }
 
         // La sola risposta rimasta e' quella al poll del PTT ("t"): "0" o "1".
-        if (line == "0" || line == "1") {
-            setPttState(line == "1");
+        // Si accetta solo se NON si sta aspettando il valore di un livello,
+        // altrimenti un livello che valesse esattamente 0 o 1 verrebbe
+        // scambiato per lo stato del trasmettitore.
+        if (m_livelloAtteso.isEmpty() && (line == "0" || line == "1")) {
+            bool const attivo = (line == "1");
+            if (m_rigPtt != attivo) {
+                setPttState(attivo);
+                changed = true;
+            }
         }
     }
     if (changed) emit rigCtlChanged();
