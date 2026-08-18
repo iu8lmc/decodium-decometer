@@ -1,0 +1,137 @@
+// Copia del modello di Qt 6.6.3 con il Gradle Plugin portato alla serie 8.
+//
+// PERCHE' NON BASTA QUELLO DI QT. Il modello ferma l'AGP alla 7.4.1, che sa
+// compilare al massimo contro l'SDK 34. Il Play Store pretende SDK 35 per le
+// app nuove e SDK 36 dal 31 agosto 2026: con l'AGP di Qt il pacchetto non
+// sarebbe proprio accettato. Questo file sta in QT_ANDROID_PACKAGE_SOURCE_DIR,
+// quindi androiddeployqt lo copia SOPRA il proprio modello.
+//
+// Cosa e' cambiato rispetto all'originale, e perche' ogni riga e' obbligata:
+//
+//   - namespace: nella serie 8 l'identita' del pacchetto non si dichiara piu'
+//     con l'attributo "package" del manifest (l'AGP si ferma con un errore).
+//     Va qui, insieme all'applicationId che e' quello che vede il negozio.
+//   - renderscript: rimosso dall'AGP 8. Lasciare quella riga basta a far
+//     fallire la configurazione, e a noi non serviva comunque.
+//   - lintOptions -> lint: rinominato nella serie 8.
+//   - compileSdk fisso a 36 invece di leggerlo da gradle.properties: quel file
+//     lo riscrive androiddeployqt con l'SDK che trova installato, e non e'
+//     detto sia quello che vogliamo.
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.9.2'
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+apply plugin: 'com.android.application'
+
+// Toglie l'attributo "package" dal manifest che androiddeployqt ha appena
+// generato qui dentro.
+//
+// Serve perche' i due strumenti lo pretendono in modi opposti: androiddeployqt
+// rifiuta il manifest se il package manca, l'AGP 8 si ferma se c'e'. Lo si
+// lascia quindi nel sorgente (androidapp/android/AndroidManifest.xml, che
+// androiddeployqt legge) e lo si toglie qui, dalla copia dentro android-build,
+// che e' l'unica che Gradle vede. L'identita' dell'app non si perde: e' il
+// namespace/applicationId dichiarato sotto.
+//
+// Gira in fase di configurazione, cioe' dopo androiddeployqt e prima che l'AGP
+// legga il file. Tocca solo un prodotto di compilazione, mai il sorgente.
+// Toglie anche il permesso CAMERA, che l'app non usa.
+//
+// Lo dichiara androiddeployqt per l'intero modulo Qt Multimedia, insieme a
+// RECORD_AUDIO: la sostituzione avviene sul segnaposto %%INSERT_PERMISSIONS%%
+// del manifest sorgente, quindi non si puo' togliere ne' con tools:node="remove"
+// (sarebbe un doppione nello stesso file, non una libreria) ne' riscrivendolo a
+// mano. Si toglie qui, dalla copia generata.
+//
+// RECORD_AUDIO resta: serve davvero alla fonia. La fotocamera no, e un'app
+// radio che la chiede e' esattamente il genere di dettaglio che un revisore
+// nota e un utente non si spiega.
+def manifestGenerato = file('AndroidManifest.xml')
+if (manifestGenerato.exists()) {
+    def testo = manifestGenerato.getText('UTF-8')
+    def ripulito = testo
+        .replaceFirst(/\s*package="[^"]*"/, '')
+        .replaceAll(/(?m)^\s*<uses-permission[^>]*android\.permission\.CAMERA[^>]*\/>\s*$\n?/, '')
+        .replaceAll(/(?m)^\s*<uses-feature[^>]*android\.hardware\.camera[^>]*\/>\s*$\n?/, '')
+    if (ripulito != testo) {
+        manifestGenerato.write(ripulito, 'UTF-8')
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    implementation 'androidx.core:core:1.13.1'
+}
+
+android {
+    namespace 'com.ft2.decometer'
+
+    compileSdk 36
+    buildToolsVersion androidBuildToolsVersion
+    ndkVersion androidNdkVersion
+
+    // Le librerie native restano estratte all'installazione: Qt le carica per
+    // nome e con la compressione nel pacchetto non le troverebbe.
+    packagingOptions.jniLibs.useLegacyPackaging true
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = [qtAndroidDir + '/src', 'src', 'java']
+            aidl.srcDirs = [qtAndroidDir + '/src', 'src', 'aidl']
+            res.srcDirs = [qtAndroidDir + '/res', 'res']
+            resources.srcDirs = ['resources']
+            assets.srcDirs = ['assets']
+            jniLibs.srcDirs = ['libs']
+       }
+    }
+
+    tasks.withType(JavaCompile) {
+        options.incremental = true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+    }
+
+    // Le risorse binarie di Qt non vanno compresse.
+    androidResources {
+        noCompress 'rcc'
+    }
+
+    defaultConfig {
+        applicationId 'com.ft2.decometer'
+        resConfig "en"
+        minSdkVersion qtMinSdkVersion
+        targetSdkVersion 36
+        ndk.abiFilters = qtTargetAbiList.split(",")
+        // Tabella dei simboli dentro il bundle. Senza, i rapporti di arresto
+        // anomalo di un'app scritta in C++ arrivano come elenchi di indirizzi
+        // esadecimali: si sa che e' crollata, non dove. Con questa riga Google
+        // li traduce da solo in nomi di funzione e numeri di riga.
+        //
+        // SYMBOL_TABLE e non FULL: basta a leggere la pila delle chiamate e
+        // pesa una frazione, mentre FULL porta dentro anche le informazioni per
+        // il debug passo-passo, che su un pacchetto pubblicato non servono a
+        // nessuno.
+        ndk.debugSymbolLevel = 'SYMBOL_TABLE'
+    }
+}

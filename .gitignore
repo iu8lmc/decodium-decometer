@@ -1,0 +1,15 @@
+# artefatti di compilazione
+build/
+build_desktop/
+*.apk
+*.aab
+*.idsig
+*.o
+*.obj
+*.a
+
+# chiavi di firma: non entrano MAI nel repository
+*.keystore
+*.jks
+*.p12
+*.mobileprovision

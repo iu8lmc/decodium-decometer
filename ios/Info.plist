@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>            <string>Decometer</string>
+    <key>CFBundleDisplayName</key>     <string>Decometer</string>
+    <!-- Questo file passa da configure_file() di CMake: i ${...} li sostituisce
+         CMake con le VARIABILI omonime, non Xcode con i suoi build setting.
+         Con ${EXECUTABLE_NAME}/${PRODUCT_BUNDLE_IDENTIFIER} le due chiavi
+         uscivano vuote (e Xcode le eliminava): l'app non si avviava nemmeno,
+         perche' senza CFBundleExecutable iOS non sa quale binario lanciare.
+         I nomi qui sotto sono definiti in CMakeLists.txt. -->
+    <key>CFBundleExecutable</key>      <string>${MACOSX_BUNDLE_EXECUTABLE_NAME}</string>
+    <key>CFBundleIdentifier</key>      <string>${MACOSX_BUNDLE_GUI_IDENTIFIER}</string>
+    <key>CFBundlePackageType</key>     <string>APPL</string>
+    <key>CFBundleShortVersionString</key> <string>1.0</string>
+    <key>CFBundleVersion</key>         <string>1.0</string>
+    <key>LSRequiresIPhoneOS</key>      <true/>
+    <key>UILaunchScreen</key>          <dict/>
+
+    <!-- Rete locale: e' l'unico permesso che questa app chiede. Il misuratore
+         legge SWR/ALC/potenza dal server CAT condiviso di Decodium 4 (porta
+         4533) sulla stessa rete WiFi, non da internet. -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Decometer si collega via rete locale al server CAT condiviso di Decodium 4, sullo stesso WiFi, per leggere potenza, ROS e ALC della radio.</string>
+
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+    </array>
+</dict>
+</plist>

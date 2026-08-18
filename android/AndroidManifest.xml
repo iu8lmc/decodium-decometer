@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<!-- Il "package" qui sotto e' l'identita' dell'app sul Play Store e non si
+     cambia piu' dopo la pubblicazione. Non basta la proprieta' CMake
+     QT_ANDROID_PACKAGE_NAME: androiddeployqt sostituisce i segnaposto
+     %%INSERT_...%% e lascia stare il resto, cosi' versione, etichetta e nome
+     risultavano corretti mentre il pacchetto restava org.qtproject.example —
+     il nome d'esempio del modello di Qt. Si scopre solo aprendo il pacchetto
+     finito.
+
+     DUE STRUMENTI LO VOGLIONO IN MODI OPPOSTI, e conviene saperlo prima di
+     "pulire" questa riga: androiddeployqt rifiuta il manifest se il package
+     non c'e' ("Invalid android manifest file"), mentre l'Android Gradle
+     Plugin 8 si ferma se c'e'. Resta quindi scritto qui, e build.gradle lo
+     toglie dalla copia generata prima che Gradle la legga. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.ft2.decometer"
+    android:installLocation="auto"
+    android:versionCode="-- %%INSERT_VERSION_CODE%% --"
+    android:versionName="-- %%INSERT_VERSION_NAME%% --">
+    <!-- %%INSERT_PERMISSIONS -->
+    <!-- %%INSERT_FEATURES -->
+    <!-- L'unico permesso che serve davvero: parlare in rete locale col server
+         CAT condiviso di Decodium 4. Niente microfono, niente audio, niente
+         USB, niente servizio in foreground — questa app legge tre numeri da
+         un socket e li disegna. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:smallScreens="true" />
+    <application
+        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:hardwareAccelerated="true"
+        android:label="Decometer"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:allowBackup="true"
+        android:fullBackupOnly="false">
+        <activity
+            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:label="Decometer"
+            android:launchMode="singleTop"
+            android:screenOrientation="unspecified"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+          <meta-data
+                android:name="android.app.lib_name"
+                android:value="-- %%INSERT_APP_LIB_NAME%% --" />
+
+          <meta-data
+                android:name="android.app.arguments"
+                android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
+
+            <meta-data
+                android:name="android.app.extract_android_style"
+                android:value="minimal" />
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.qtprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/qtprovider_paths"/>
+        </provider>
+    </application>
+</manifest>
