@@ -33,9 +33,13 @@ MeterBridge::MeterBridge(QObject* parent)
     // Interrogare spesso non costa: il server legge dalla propria memoria e
     // risponde in circa 3 ms senza toccare la seriale della radio.
     //
-    // 150 ms e' scelto per l'occhio: sotto questa soglia il movimento
-    // dell'ago si legge come continuo, sopra comincia a sembrare a scatti.
-    m_poll.setInterval(150);
+    // 80 ms: piu' fitto della cadenza con cui il dato cambia davvero, ed e'
+    // voluto. Decodium legge la radio ogni 250 ms in trasmissione (dalla
+    // 1.0.566), e chi interroga a passo uguale prende in media mezzo periodo
+    // di ritardo solo per essersi trovato fuori fase. Chiedere piu' spesso di
+    // quanto il dato cambi costa qualche byte in rete e toglie quel ritardo:
+    // il valore nuovo viene raccolto entro 80 ms da quando esiste.
+    m_poll.setInterval(80);
     connect(&m_poll, &QTimer::timeout, this, &MeterBridge::onPoll);
 
     applyKeepScreenOn();
