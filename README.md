@@ -175,13 +175,21 @@ L'AAB esce da `build/android/android-build/build/outputs/bundle/release/`.
 Il negozio non accetta più APK per le app nuove: vuole l'AAB, e da quello
 ricava lui gli APK per ogni dispositivo.
 
-La firma è un passo a parte e **non** sta in questo repository: la chiave di
-pubblicazione va custodita fuori, perché perderla significa non poter più
-aggiornare l'app.
+La firma è un passo a parte:
+```
+set DECODIUM_KEYSTORE_PASS=...   REM oppure la chiede lo script
+firma_aab.bat
+```
+La chiave sta in `%USERPROFILE%\.android\decodium-upload.jks`, **fuori dal
+repository**: una chiave di firma versionata è una chiave pubblica, e chiunque
+potrebbe firmare aggiornamenti dell'app. È la stessa di Decodium mobile —
+una chiave può firmare più applicazioni, e tenerne una sola significa averne
+una sola da custodire. Dopo la prima pubblicazione non si cambia a piacere:
+se va persa, per tornare a pubblicare bisogna chiedere a Google di azzerarla.
 
-```
-jarsigner -keystore <chiave.jks> -signedjar Decometer-1.0.0.aab           android-build-release.aab <alias>
-```
+Lo script firma su un file di lavoro e lo mette al posto del bundle buono solo
+a firma riuscita: un tentativo andato male — password sbagliata, o anche solo
+un invio a vuoto sul prompt — porterebbe via l'unica copia firmata.
 
 I materiali della scheda stanno in `store/`: testi pronti da incollare
 (`scheda.md`), informativa privacy (`privacy.md`, da pubblicare a un indirizzo
