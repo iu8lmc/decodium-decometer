@@ -166,10 +166,11 @@ sorgenti di prova:
   reale, filtro per banda.
 
 **Il layout su schermo di telefono non è ancora stato verificato su un
-dispositivo reale.** L'artefatto della prova desktop su Windows a scala 175%
-ha però un nome: il processo non dichiara la consapevolezza del DPI, così
-Windows virtualizza la finestra (480×900 punti compressi in 274×514 pixel) e
-il disegno non ci sta. Avviando con `QT_QPA_PLATFORM=windows:dpiawareness=2`
-la finestra torna larga 480 punti e il contenuto coincide — è così che sono
-state guardate le schermate qui sopra. Su Android e iOS non si presenta,
-perché lì il DPI lo gestisce il sistema. Resta da guardare sul telefono.
+dispositivo reale.** L'artefatto che rendeva inutilizzabile la prova desktop su
+Windows a scala 175% è invece risolto: il processo non dichiarava la
+consapevolezza del DPI, così il sistema virtualizzava la finestra — i 480×900
+punti chiesti finivano in 274×514 pixel veri e il disegno usciva dai bordi,
+con l'aria di un layout sbagliato che sbagliato non era. `main.cpp` ora lo
+dichiara all'avvio (rispettando `QT_QPA_PLATFORM` se impostata da fuori), e la
+finestra si compone giusta. Su Android e iOS non si presentava, perché lì il
+DPI lo governa il sistema.
