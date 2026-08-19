@@ -8,6 +8,20 @@
 
 int main(int argc, char* argv[])
 {
+    // Windows, prova desktop: senza dichiarare la consapevolezza del DPI il
+    // sistema virtualizza la finestra — a scala 175% i 480x900 punti chiesti
+    // finiscono in 274x514 pixel veri, e il disegno esce dai bordi. Sembra un
+    // difetto del layout e non lo e': le misure interne sono giuste, e' la
+    // superficie a essere di un'altra dimensione. Su Android e iOS non si
+    // presenta, perche' li' il DPI lo governa il sistema.
+    //
+    // Si rispetta comunque una scelta fatta da fuori: chi avvia con la
+    // variabile gia' impostata sa quel che vuole.
+#if defined(Q_OS_WIN)
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
+        qputenv("QT_QPA_PLATFORM", "windows:dpiawareness=2");
+#endif
+
     QGuiApplication app(argc, argv);
     app.setOrganizationName(QStringLiteral("Decodium"));
     app.setApplicationName(QStringLiteral("Decometer"));
