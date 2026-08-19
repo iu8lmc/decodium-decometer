@@ -12,6 +12,10 @@ import QtQuick.Layouts
 Item {
     id: schermo
 
+    // L'ospite decide dove si torna: la schermata non sa di far parte di una
+    // pila e non deve saperlo.
+    signal tornaAlleMisure()
+
     readonly property color colInk:   "#E8ECEF"
     readonly property color colLabel: "#8A939C"
     readonly property color colMuted: "#5B6670"
@@ -39,6 +43,14 @@ Item {
             Layout.fillWidth: true
             spacing: 8
 
+            // Il ritorno al quadrante: senza barra, questa e' l'unica via
+            // indietro che si vede: il tasto di sistema su Android c'e', ma
+            // su iPhone non esiste e nessuno lo cerca a schermo.
+            Button {
+                text: "‹"
+                implicitWidth: 34
+                onClicked: schermo.tornaAlleMisure()
+            }
             Rectangle {
                 Layout.preferredWidth: 10
                 Layout.preferredHeight: 10

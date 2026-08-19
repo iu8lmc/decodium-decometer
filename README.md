@@ -94,6 +94,23 @@ Quando quel file cambia nell'app completa, qui si **ricopia**, non si
 modifica: due copie che divergono sono due strumenti diversi che dicono di
 essere lo stesso.
 
+C'è **una sola eccezione**, ed è marcata nel file come `INNESTO DELL'APP
+STANDALONE`: i due tasti DECODE e CLUSTER sotto AUTO, con le proprietà che li
+governano (`finestreDisponibili`, `decodeVivo`, `clusterVivo`) e i due segnali
+che emettono. Sono **spenti di default**: nell'app completa il frontalino
+resta identico a prima, non un tasto in più né un pixel diverso, perché lì le
+altre finestre si aprono dal menu del programma. Qui il quadrante è tutta
+l'applicazione, e da qualche parte si deve pur passare per le altre due
+schermate. **Alla prossima ricopiatura l'innesto va riapplicato**, altrimenti
+l'app perde la navigazione.
+
+Quei tasti stanno lì, e non in una barra fissa, per una ragione precisa: il
+frontalino è disegnato su tela fissa e scalato per intero, quindi qualunque
+striscia sopra o sotto non gli toglie un margine — gli toglie *scala*, e il
+misuratore si rimpicciolisce tutto insieme. Pagare uno strumento più piccolo
+per tenere tre tasti sempre in vista non conviene, su una cosa che si guarda
+mentre si trasmette.
+
 I valori non si inventano: se la radio non fornisce un misuratore compaiono
 due trattini e la riga di stato dice perché. A trasmettitore fermo i
 misuratori di trasmissione non misurano niente, e il server risponde "non
@@ -104,8 +121,8 @@ perfetto», che somiglia a una stazione che va benissimo.
 
 | File | Contenuto |
 |---|---|
-| `Main.qml` | le tre schermate, la barra in basso, le impostazioni di rete |
-| `Decometer.qml` | il frontalino, copia invariata dall'app completa |
+| `Main.qml` | le tre schermate, la navigazione, le impostazioni di rete |
+| `Decometer.qml` | il frontalino, dall'app completa più l'innesto dei due tasti |
 | `DecodeScreen.qml` | le decodifiche, con i conteggi per modo che fanno da filtro |
 | `ClusterScreen.qml` | gli spot, con i conteggi per banda che fanno da filtro |
 | `MeterBridge.{hpp,cpp}` | client TCP rigctl: poll del PTT, tre livelli, nient'altro |
@@ -118,12 +135,24 @@ perfetto», che somiglia a una stazione che va benissimo.
 Le tre sorgenti non si conoscono fra loro ed è voluto: chi apre l'app per
 guardare la potenza mentre trasmette non deve vedersi fermare il quadrante
 perché il cluster non risponde. Ognuna dice da sé come sta — il puntino
-accanto al nome nella barra in basso — e ognuna, se la linea cade, se la
-riprende da sola.
+accanto al nome del tasto — e ognuna, se la linea cade, se la riprende da
+sola.
+
+Si naviga dal quadrante: i due tasti sotto AUTO aprono le altre schermate, e
+il `‹` in cima a ognuna riporta alle misure (su Android va anche il tasto di
+sistema, che su iPhone non esiste).
 
 La superficie di proprietà di `MeterBridge` (`rigWatt`, `rigRos`, `rigAlc`,
 `meterVeri`, `catConnected`, …) ricalca deliberatamente quella di `AppBridge`
 dell'app completa: è ciò che permette di usare `Decometer.qml` così com'è.
+
+## Autore
+
+**Martino, IU8LMC** — <iu8lmc@gmail.com>
+
+L'indirizzo compare anche in fondo alle impostazioni dell'app, come
+collegamento: chi trova un difetto sul telefono deve poterlo segnalare da
+lì, senza andarlo a cercare altrove.
 
 ## Build
 

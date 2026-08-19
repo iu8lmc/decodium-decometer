@@ -17,8 +17,13 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: win
     visible: true
-    width: 480
-    height: 900
+    // Misura di un telefono, ma non piu' grande dello schermo su cui si apre:
+    // sul PC di prova una finestra piu' alta del monitor viene ridimensionata
+    // dal sistema mentre il contenuto resta disposto per l'altezza chiesta, e
+    // se ne vede solo un pezzo. Sul telefono non cambia nulla, perche' li' la
+    // finestra e' a schermo intero comunque.
+    width: Math.min(480, Screen.desktopAvailableWidth - 40)
+    height: Math.min(900, Screen.desktopAvailableHeight - 60)
     title: qsTr("Decometer")
     color: "#0B0E12"
 
@@ -35,6 +40,15 @@ ApplicationWindow {
     // di rete invece delle misure. Una volta collegati, un calo della linea lo
     // dice gia' da se' ogni schermata.
     property bool showSettings: bridge.lastHost.length === 0
+
+    // Quale delle tre schermate si guarda: 0 misure, 1 decodifiche, 2 spot.
+    // Non c'e' piu' una barra a dirlo — dal quadrante si entra con i due tasti
+    // sotto AUTO e si torna col tasto in cima alle altre due. Una barra fissa
+    // costava altezza al frontalino, che e' disegnato su tela fissa e quindi
+    // si rimpicciolisce tutto insieme: pagare un misuratore piu' piccolo per
+    // tre tasti sempre in vista non conviene, su uno strumento che si guarda
+    // mentre si trasmette.
+    property int schermo: 0
 
     // ---------------------------------------------------------- impostazioni
     Item {
@@ -217,11 +231,34 @@ ApplicationWindow {
                 Label {
                     Layout.fillWidth: true
                     Layout.topMargin: 8
-                    Layout.bottomMargin: 20
                     text: qsTr("Serve la stessa rete WiFi del PC, non internet. Le tre sorgenti sono indipendenti: se una non risponde, le altre continuano.")
                     color: colMuted
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
+                }
+
+                // ---------------------------------------------------- contatti
+                // In fondo alle impostazioni, dove si cerca chi ha fatto una
+                // cosa quando la si vuole segnalare: l'indirizzo e' un
+                // collegamento vero, cosi' dal telefono si scrive senza
+                // ricopiarlo a mano.
+                Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 10 }
+                Label { text: qsTr("CONTATTI"); color: colCyan; font.pixelSize: 12; font.bold: true }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Decometer 1.0 — Martino, IU8LMC")
+                    color: colInk
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    Layout.bottomMargin: 20
+                    text: "<a href=\"mailto:iu8lmc@gmail.com\">iu8lmc@gmail.com</a>"
+                    textFormat: Text.RichText
+                    linkColor: colCyan
+                    font.pixelSize: 13
+                    onLinkActivated: (link) => Qt.openUrlExternally(link)
                 }
             }
         }
@@ -238,7 +275,7 @@ ApplicationWindow {
             id: pile
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: barra.currentIndex
+            currentIndex: win.schermo
 
             // --- misure --------------------------------------------------
             Item {
@@ -249,6 +286,13 @@ ApplicationWindow {
                     ingrandito: true
                     ingranditoDisponibile: false
                     onChiudiIntero: win.showSettings = true
+                    // I due tasti dentro il quadrante, sotto AUTO: qui e'
+                    // l'unica applicazione, quindi di la' si passa da qui.
+                    finestreDisponibili: true
+                    decodeVivo: decodeFeed.listening
+                    clusterVivo: spotFeed.connected
+                    onApriDecode: win.schermo = 1
+                    onApriCluster: win.schermo = 2
                 }
 
                 // Via d'uscita quando il collegamento non c'e'. Compare SOLO
@@ -265,55 +309,12 @@ ApplicationWindow {
             }
 
             // --- decodifiche ---------------------------------------------
-            DecodeScreen {}
+            DecodeScreen { onTornaAlleMisure: win.schermo = 0 }
 
             // --- cluster --------------------------------------------------
-            ClusterScreen {}
+            ClusterScreen { onTornaAlleMisure: win.schermo = 0 }
         }
 
-        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: colEdge }
-
-        // La barra sta in basso, dove arriva il pollice: questa e' un'app che
-        // si tiene in mano mentre si fa altro con l'altra.
-        TabBar {
-            id: barra
-            Layout.fillWidth: true
-            background: Rectangle { color: colPanel }
-
-            TabButton {
-                text: qsTr("Misure")
-                // Un puntino invece di una scritta d'errore: la barra deve
-                // dire come stanno le tre sorgenti senza diventare un
-                // pannello di controllo.
-                Rectangle {
-                    width: 6; height: 6; radius: 3
-                    color: bridge.catConnected ? colGreen : colMuted
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 6
-                }
-            }
-            TabButton {
-                text: qsTr("Decode")
-                Rectangle {
-                    width: 6; height: 6; radius: 3
-                    color: decodeFeed.listening ? colGreen : colMuted
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 6
-                }
-            }
-            TabButton {
-                text: qsTr("Cluster")
-                Rectangle {
-                    width: 6; height: 6; radius: 3
-                    color: spotFeed.connected ? colGreen : colMuted
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 6
-                }
-            }
-        }
     }
 
     // Il tasto Indietro di Android: dalle schermate secondarie riporta alle
@@ -324,8 +325,8 @@ ApplicationWindow {
         onActivated: {
             if (win.showSettings && bridge.lastHost.length > 0)
                 win.showSettings = false
-            else if (barra.currentIndex !== 0)
-                barra.currentIndex = 0
+            else if (win.schermo !== 0)
+                win.schermo = 0
             else
                 Qt.quit()
         }

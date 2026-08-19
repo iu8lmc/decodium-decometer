@@ -38,6 +38,19 @@ Item {
     signal apriIntero()
     signal chiudiIntero()
 
+    // INNESTO DELL'APP STANDALONE (Decometer, telefono). Nell'app completa
+    // resta spento e il frontalino e' identico a prima: nessun tasto in piu',
+    // nessun pixel diverso. Serve perche' li' le altre finestre si aprono dal
+    // menu del programma, mentre qui il quadrante e' tutta l'applicazione e
+    // da qualche parte bisogna pur passare per le altre due schermate.
+    // Stanno sotto AUTO, nella colonna dei comandi, dove il pollice arriva
+    // gia' per cambiare portata.
+    property bool finestreDisponibili: false
+    property bool decodeVivo: false
+    property bool clusterVivo: false
+    signal apriDecode()
+    signal apriCluster()
+
     readonly property int faceWidth: 900
     readonly property int faceHeight: 420
 
@@ -722,6 +735,50 @@ Item {
                         color: dm.autoRange ? dm.colCyan : dm.colLabel
                     }
                     MouseArea { anchors.fill: parent; onClicked: dm.autoRange = !dm.autoRange }
+                }
+
+                // Le altre due finestre dell'app del telefono. Stesso taglio
+                // dei comandi accanto, con un puntino che dice se quella
+                // sorgente sta ricevendo: chi guarda il quadrante sa gia' da
+                // qui se c'e' qualcosa da vedere di la'.
+                Repeater {
+                    model: dm.finestreDisponibili
+                           ? [{ testo: qsTr("DECODE"),  vivo: dm.decodeVivo,  quale: 0 },
+                              { testo: qsTr("CLUSTER"), vivo: dm.clusterVivo, quale: 1 }]
+                           : []
+                    delegate: Rectangle {
+                        id: tastoFinestra
+                        required property var modelData
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 158; height: 30; radius: 5
+                        color: "#181D22"
+                        border.width: 1
+                        border.color: "#2A3138"
+
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 7
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: tastoFinestra.modelData.testo
+                                font.pixelSize: 10; font.bold: true; font.letterSpacing: 2
+                                color: dm.colLabel
+                            }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 6; height: 6; radius: 3
+                                color: tastoFinestra.modelData.vivo ? dm.colGreen : "#2A3138"
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                if (tastoFinestra.modelData.quale === 0) dm.apriDecode()
+                                else dm.apriCluster()
+                            }
+                        }
+                    }
                 }
             }
 
