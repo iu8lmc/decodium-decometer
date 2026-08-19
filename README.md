@@ -167,6 +167,28 @@ Il pacchetto è `com.ft2.decometer` — diverso da `com.ft2.decodium`, perché s
 negozio è un prodotto separato, con la propria scheda. Una volta pubblicato
 **non si cambia più**.
 
+### Play Store
+```
+aab_android.bat                   REM produce l'AAB, NON firmato
+```
+L'AAB esce da `build/android/android-build/build/outputs/bundle/release/`.
+Il negozio non accetta più APK per le app nuove: vuole l'AAB, e da quello
+ricava lui gli APK per ogni dispositivo.
+
+La firma è un passo a parte e **non** sta in questo repository: la chiave di
+pubblicazione va custodita fuori, perché perderla significa non poter più
+aggiornare l'app.
+
+```
+jarsigner -keystore <chiave.jks> -signedjar Decometer-1.0.0.aab           android-build-release.aab <alias>
+```
+
+I materiali della scheda stanno in `store/`: testi pronti da incollare
+(`scheda.md`), informativa privacy (`privacy.md`, da pubblicare a un indirizzo
+raggiungibile — il negozio la pretende anche per le app che non raccolgono
+nulla) e la grafica, rigenerabile con `python tools/make_store_art.py`. Gli
+screenshot vanno presi dal telefono vero.
+
 ### iOS
 ```
 cd ios && ./configure_ios.sh      # export APPLE_TEAM_ID=... per firmare

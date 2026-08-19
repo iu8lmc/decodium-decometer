@@ -17,7 +17,19 @@
     android:installLocation="auto"
     android:versionCode="-- %%INSERT_VERSION_CODE%% --"
     android:versionName="-- %%INSERT_VERSION_NAME%% --">
-    <!-- %%INSERT_PERMISSIONS -->
+    <!-- QUI MANCA APPOSTA il segnaposto dei permessi di androiddeployqt, e
+         non va rimesso. Al suo posto
+         androiddeployqt scrive i permessi che valgono per il Qt generico, fra
+         cui WRITE_EXTERNAL_STORAGE e READ_EXTERNAL_STORAGE: qui non servono a
+         niente — l'app non apre un file — ma nel pacchetto finito restavano, e
+         sulla scheda del negozio comparirebbe "puo' accedere a file e
+         contenuti multimediali" su un'applicazione che promette di leggere
+         tre socket e disegnare. Si scopre solo aprendo il pacchetto finito,
+         perche' il manifest sorgente non li nomina.
+         Togliere il segnaposto e' l'unico modo che funziona: tools:node
+         ="remove" non viene applicato qui, e anzi finisce per DICHIARARE il
+         permesso invece di toglierlo. I permessi veri sono quelli qui sotto,
+         scritti a mano. -->
     <!-- %%INSERT_FEATURES -->
     <!-- Rete locale e nient'altro: le misure dal server CAT condiviso, le
          decodifiche dal traffico UDP che Decodium emette gia' di suo, gli
@@ -32,6 +44,7 @@
          apposito, e l'app resterebbe in ascolto di un silenzio che sembra un
          guasto. Con l'invio diretto non entra in gioco. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
     <supports-screens
         android:anyDensity="true"
         android:largeScreens="true"
