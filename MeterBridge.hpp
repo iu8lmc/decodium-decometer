@@ -68,6 +68,16 @@ class MeterBridge : public QObject
     // (FLAG_KEEP_SCREEN_ON), che Android rilascia da se' quando l'app va in
     // background: non puo' restare incastrato.
     Q_PROPERTY(bool keepScreenOn READ keepScreenOn WRITE setKeepScreenOn NOTIFY keepScreenOnChanged)
+    // Margini delle aree di sistema: barre e incavo dello schermo. Senza,
+    // l'intestazione del quadrante finisce sotto l'orologio e il lato corto
+    // sotto la barra dei gesti. E' la stessa soluzione dell'app completa, da
+    // cui questa parte viene: la' e' costata un processo che moriva senza
+    // messaggio, e la nota nel .cpp dice perche'.
+    Q_PROPERTY(double safeTop READ safeTop NOTIFY safeAreaChanged)
+    Q_PROPERTY(double safeBottom READ safeBottom NOTIFY safeAreaChanged)
+    Q_PROPERTY(double safeLeft READ safeLeft NOTIFY safeAreaChanged)
+    Q_PROPERTY(double safeRight READ safeRight NOTIFY safeAreaChanged)
+
     Q_PROPERTY(QString lastHost READ lastHost NOTIFY lastEndpointChanged)
     Q_PROPERTY(int lastPort READ lastPort NOTIFY lastEndpointChanged)
 
@@ -106,10 +116,19 @@ public:
     bool keepScreenOn() const { return m_keepScreenOn; }
     void setKeepScreenOn(bool on);
 
+    double safeTop() const { return m_safeTop; }
+    double safeBottom() const { return m_safeBottom; }
+    double safeLeft() const { return m_safeLeft; }
+    double safeRight() const { return m_safeRight; }
+
     QString lastHost() const { return m_lastHost; }
     int lastPort() const { return m_lastPort; }
 
 public slots:
+    // Da richiamare quando lo schermo ruota o l'app torna in primo piano: i
+    // margini cambiano di lato, e all'avvio possono non essere ancora pronti.
+    Q_INVOKABLE void refreshSafeArea();
+
     // Voluto invocabile dal QML: Impostazioni -> IP:porta -> Connetti.
     void catConnect(const QString& host, int port);
     void catDisconnect();
@@ -121,6 +140,7 @@ signals:
     void rigCtlChanged();
     void txActiveChanged();
     void lastEndpointChanged();
+    void safeAreaChanged();
 
 private slots:
     void onCatReadyRead();
@@ -212,6 +232,11 @@ private:
     // e uno stacco voluto, che deve restare staccato.
     bool m_vuoleConnesso {false};
     int m_ritardoRitentativo {kRitardoMin};
+    double m_safeTop {0.0};
+    double m_safeBottom {0.0};
+    double m_safeLeft {0.0};
+    double m_safeRight {0.0};
+
     QString m_lastHost;
     int m_lastPort {4533};
     QSettings m_settings;

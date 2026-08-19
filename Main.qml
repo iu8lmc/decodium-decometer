@@ -46,6 +46,52 @@ ApplicationWindow {
 
     readonly property bool suTelefono: Qt.platform.os === "android"
                                        || Qt.platform.os === "ios"
+    readonly property bool coricato: width > height
+
+    // I margini che il sistema si tiene: barra di stato, barra dei gesti,
+    // incavo della fotocamera. Senza toglierli la riga di stato del quadrante
+    // finisce sotto l'orologio.
+    //
+    // Se pero' la finestra e' gia' piu' bassa dello schermo, il taglio l'ha
+    // gia' fatto qualcun altro e toglierlo di nuovo lascerebbe una banda vuota.
+    // Lo si riconosce dall'unica cosa che lo dice davvero — l'altezza della
+    // finestra confrontata con quella dello schermo — con dieci punti di
+    // tolleranza, perche' un pixel o due sono arrotondamenti e non vogliono
+    // dire niente.
+    readonly property bool margineGiaTolto: Screen.height - height > 10
+    readonly property real insetTop: margineGiaTolto ? 0 : bridge.safeTop
+    readonly property real insetBottom: margineGiaTolto ? 0 : bridge.safeBottom
+    readonly property real insetLeft: margineGiaTolto ? 0 : bridge.safeLeft
+    readonly property real insetRight: margineGiaTolto ? 0 : bridge.safeRight
+
+    // Ruotando il telefono i margini cambiano di lato.
+    onWidthChanged: bridge.refreshSafeArea()
+    onHeightChanged: bridge.refreshSafeArea()
+
+    // All'avvio la finestra di sistema puo' non essere ancora pronta e i
+    // margini tornano zero: senza una rotazione nessuno li rileggerebbe piu' e
+    // il quadrante resterebbe sotto l'orologio per tutta la sessione. Si
+    // insiste per qualche secondo e si smette appena il sistema risponde
+    // qualcosa di sensato.
+    Timer {
+        interval: 250; repeat: true; running: win.suTelefono
+        property int tentativi: 0
+        onTriggered: {
+            bridge.refreshSafeArea()
+            tentativi++
+            if (bridge.safeTop > 0 || bridge.safeBottom > 0 || tentativi > 20)
+                running = false
+        }
+    }
+
+    // Tornando dal secondo piano i margini possono essere cambiati.
+    Connections {
+        target: Qt.application
+        function onStateChanged() {
+            if (Qt.application.state === Qt.ApplicationActive)
+                bridge.refreshSafeArea()
+        }
+    }
 
     readonly property color colInk:   "#E8ECEF"
     readonly property color colLabel: "#8A939C"
@@ -80,6 +126,10 @@ ApplicationWindow {
         Flickable {
             anchors.fill: parent
             anchors.margins: 20
+            anchors.topMargin: 20 + win.insetTop
+            anchors.bottomMargin: 20 + win.insetBottom
+            anchors.leftMargin: 20 + win.insetLeft
+            anchors.rightMargin: 20 + win.insetRight
             contentHeight: colonna.implicitHeight
             clip: true
 
@@ -331,6 +381,10 @@ ApplicationWindow {
     // -------------------------------------------------------------- schermate
     ColumnLayout {
         anchors.fill: parent
+        anchors.topMargin: win.insetTop
+        anchors.bottomMargin: win.insetBottom
+        anchors.leftMargin: win.insetLeft
+        anchors.rightMargin: win.insetRight
         visible: !win.showSettings
         spacing: 0
         z: 5

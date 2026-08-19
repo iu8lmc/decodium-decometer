@@ -11,6 +11,7 @@
 #if defined(Q_OS_IOS)
 void iosSetIdleTimerDisabled(bool disabled);
 void iosVibra();
+void iosSafeAreaInsets(double* top, double* bottom, double* left, double* right);
 #endif
 
 MeterBridge::MeterBridge(QObject* parent)
@@ -104,6 +105,82 @@ void MeterBridge::applyKeepScreenOn()
         win.callMethod<void>(on ? "addFlags" : "clearFlags", "(I)V", kFlagKeepScreenOn);
     });
 #endif
+}
+
+// I margini che il sistema si tiene per se': barre di stato e navigazione, e
+// l'incavo della fotocamera. Senza toglierli, l'intestazione del quadrante
+// finisce sotto l'orologio e il lato corto sotto la barra dei gesti.
+//
+// TUTTA LA PARTE ANDROID GIRA SUL THREAD INTERFACCIA DI ANDROID, non su
+// quello di Qt. getWindow(), getDecorView() e getRootWindowInsets() sono
+// metodi di View, e le View di Android si toccano SOLO dal loro thread.
+// Chiamarli dal thread di Qt — dove arrivano i cambi di dimensione e il timer
+// che rilegge i margini — non da' un errore: corrompe lo stato del renderer, e
+// il processo muore poco dopo con "pthread_mutex_lock called on a destroyed
+// mutex". Dal telefono si vede l'app che si apre e si richiude subito, senza
+// un messaggio che spieghi niente. E' una lezione dell'app completa, da cui
+// questo codice viene: non la si riscopre due volte.
+void MeterBridge::refreshSafeArea()
+{
+    double t = 0, b = 0, l = 0, r = 0;
+
+#if defined(Q_OS_IOS)
+    iosSafeAreaInsets(&t, &b, &l, &r);
+#elif defined(Q_OS_ANDROID)
+    // getInsets(int) esiste dall'API 30. Sotto quella soglia il sistema rientra
+    // ancora la finestra da se', quindi zero e' la risposta giusta.
+    if (QNativeInterface::QAndroidApplication::sdkVersion() < 30)
+        return;
+
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([this] {
+        QJniObject act = QNativeInterface::QAndroidApplication::context();
+        if (!act.isValid()) return;
+        QJniObject win = act.callObjectMethod("getWindow", "()Landroid/view/Window;");
+        if (!win.isValid()) return;
+        QJniObject decor = win.callObjectMethod("getDecorView", "()Landroid/view/View;");
+        if (!decor.isValid()) return;
+        QJniObject insets = decor.callObjectMethod("getRootWindowInsets",
+                                                   "()Landroid/view/WindowInsets;");
+        if (!insets.isValid()) return;
+
+        // Barre di sistema E incavo dello schermo: sui telefoni con la
+        // fotocamera nel display il secondo e' piu' alto del primo, e fermarsi
+        // alle sole barre lascerebbe la riga di stato sotto l'isola.
+        jint const tipo =
+            QJniObject::callStaticMethod<jint>("android/view/WindowInsets$Type",
+                                               "systemBars", "()I")
+            | QJniObject::callStaticMethod<jint>("android/view/WindowInsets$Type",
+                                                 "displayCutout", "()I");
+        QJniObject in = insets.callObjectMethod("getInsets", "(I)Landroid/graphics/Insets;", tipo);
+        if (!in.isValid()) return;
+
+        // Android li da' in pixel fisici, QML ragiona in punti.
+        double const dpr = qMax(1.0, qApp->devicePixelRatio());
+        double const nt = in.getField<jint>("top")    / dpr;
+        double const nb = in.getField<jint>("bottom") / dpr;
+        double const nl = in.getField<jint>("left")   / dpr;
+        double const nr = in.getField<jint>("right")  / dpr;
+
+        // Il risultato torna al thread di Qt con una chiamata accodata: e'
+        // l'unico punto in cui si possono toccare i membri ed emettere.
+        QMetaObject::invokeMethod(this, [this, nt, nb, nl, nr] {
+            if (qFuzzyCompare(nt + 1.0, m_safeTop + 1.0)
+                && qFuzzyCompare(nb + 1.0, m_safeBottom + 1.0)
+                && qFuzzyCompare(nl + 1.0, m_safeLeft + 1.0)
+                && qFuzzyCompare(nr + 1.0, m_safeRight + 1.0))
+                return;
+            m_safeTop = nt; m_safeBottom = nb; m_safeLeft = nl; m_safeRight = nr;
+            emit safeAreaChanged();
+        }, Qt::QueuedConnection);
+    });
+    return;
+#endif
+
+    if (qFuzzyCompare(t + 1.0, m_safeTop + 1.0) && qFuzzyCompare(b + 1.0, m_safeBottom + 1.0)
+        && qFuzzyCompare(l + 1.0, m_safeLeft + 1.0) && qFuzzyCompare(r + 1.0, m_safeRight + 1.0))
+        return;
+    m_safeTop = t; m_safeBottom = b; m_safeLeft = l; m_safeRight = r;
+    emit safeAreaChanged();
 }
 
 // Un colpo di vibrazione. E' il beep del misuratore da tavolo tradotto per
