@@ -2,6 +2,7 @@
 #define DECOMETER_METER_BRIDGE_HPP
 
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QObject>
 #include <QSettings>
 #include <QString>
@@ -96,6 +97,34 @@ private:
     void resetTxMeters();
     void applyKeepScreenOn();
 
+    // catConnect/catDisconnect sono cio' che vuole l'UTENTE; queste tre sono
+    // cio' che fa la MACCHINA per ottenerlo, e il ritentativo le riusa senza
+    // passare da catConnect (che azzererebbe l'intenzione e riscriverebbe le
+    // impostazioni a ogni giro).
+    void chiudiSocket();
+    void avviaConnessione();
+    void programmaRitentativo();
+
+    // Un secondo al primo tentativo, poi il doppio ogni volta fino a dieci:
+    // se il PC e' spento davvero non ha senso bussare due volte al secondo
+    // per ore, e se invece e' solo il WiFi che ha vacillato il primo
+    // ritentativo arriva subito.
+    static constexpr int kRitardoMin = 1000;
+    static constexpr int kRitardoMax = 10000;
+    // Un SYN che nessuno raccoglie resta appeso finche' decide il sistema
+    // operativo: decine di secondi, durante i quali nessun ritentativo
+    // partirebbe perche' formalmente il tentativo e' ancora in corso. Questa
+    // e' la caduta di rete tipica — il telefono cambia access point, il PC
+    // sparisce senza chiudere niente — quindi il tentativo si taglia da se'.
+    static constexpr int kTimeoutConn = 6000;
+    // Un TCP che cade non sempre si chiude: il telefono cambia access point e
+    // il socket resta aperto e muto per minuti, con il quadrante fermo
+    // sull'ultima lettura e nessun errore da nessuna parte. Dopo tre secondi
+    // di silenzio a fronte di domande fatte, la linea si considera morta e si
+    // ricomincia da capo — che e' esattamente cio' che l'utente farebbe a
+    // mano, ma senza doverci pensare mentre trasmette.
+    static constexpr int kSilenzioMax = 3000;
+
     QTcpSocket* m_cat {nullptr};
     QByteArray m_catBuf;
     // UN SOLO ciclo veloce, non due. La prima versione interrogava il PTT una
@@ -106,6 +135,14 @@ private:
     // Il server risponde in circa 3 ms e legge da memoria senza toccare la
     // seriale, quindi chiedere tutto insieme e spesso non costa quasi nulla.
     QTimer m_poll;
+    QTimer m_ritenta;      // riconnessione dopo una caduta
+    QTimer m_attesaConn;   // guardia sul singolo tentativo di connessione
+    // Il giro precedente non ha ancora risposto: non se ne accavalla un altro.
+    // A 80 ms su una rete che rallenta le domande si accumulerebbero, e le
+    // risposte arriverebbero con un ritardo che cresce da solo — su un
+    // misuratore vuol dire un ago che indica il passato.
+    bool m_pollInVolo {false};
+    QElapsedTimer m_ultimaRisposta;
 
     bool m_catConnected {false};
     QString m_catStatus;
@@ -119,6 +156,11 @@ private:
     QString m_livelloAtteso;      // nome del livello di cui si aspetta "Level Value:"
 
     bool m_keepScreenOn {true};
+    // Vero da quando l'utente ha chiesto di collegarsi a quando chiede di
+    // staccare: e' la differenza fra una linea caduta, da riprendere da se',
+    // e uno stacco voluto, che deve restare staccato.
+    bool m_vuoleConnesso {false};
+    int m_ritardoRitentativo {kRitardoMin};
     QString m_lastHost;
     int m_lastPort {4533};
     QSettings m_settings;

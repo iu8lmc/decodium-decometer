@@ -1,7 +1,9 @@
-# Decometer — misuratore RF per Android e iOS
+# Decometer — la stazione di Decodium 4 sul telefono
 
-Il frontalino **DECOMETER** di Decodium 4 come app a sé, per il telefono:
-potenza diretta, ROS e ALC della radio letti **dal PC**, in rete locale.
+Tre finestre su quello che sta facendo il PC, in rete locale: il frontalino
+**DECOMETER** con potenza diretta, ROS e ALC; il **traffico UDP delle
+decodifiche**, distinte per modo; gli **spot del cluster DX** che Decodium sta
+ricevendo.
 
 Serve quando la radio la tiene Decodium: nessun altro programma può aprire la
 stessa porta seriale, e chi opera dall'altra stanza — o dall'altra parte del
@@ -11,8 +13,8 @@ l'antenna rispondesse. Questa app apre quella finestra, e nient'altro.
 ## Cosa non fa, e perché
 
 Non decodifica, non trasmette, non tocca la seriale, non chiede il microfono.
-È **sola lettura**. Per questo sta in una cartella separata da
-`decodium-mobile`: quell'app porta con sé tutto il motore di decodifica
+È **sola lettura**: ascolta tre socket e disegna. Per questo sta in una
+cartella separata da `decodium-mobile`: quell'app porta con sé tutto il motore di decodifica
 (FFTW, Boost, Opus, il core C++ di Decodium), che qui non servirebbe a nulla
 se non ad appesantire il pacchetto e la lista dei permessi.
 
@@ -30,6 +32,45 @@ niente da esporre verso l'esterno.
 
 Funziona anche contro un `rigctld` di Hamlib qualsiasi, non solo contro
 Decodium — è lo stesso protocollo.
+
+### Le decodifiche
+
+Non c'è niente da aggiungere sul PC: Decodium, come ogni discendente di
+WSJT-X, spedisce già ogni decodifica in un pacchetto UDP. Perché arrivino qui
+basta scrivere l'indirizzo del telefono in **Impostazioni → Reporting → UDP
+Server** (di serie `127.0.0.1:2237`), oppure un indirizzo multicast se devono
+riceverle in più di uno — in quel caso l'app alza da sé il blocco multicast di
+Android, senza il quale il telefono scarta i pacchetti di gruppo e resta in
+ascolto di un silenzio che sembra un guasto.
+
+Il formato è quello pubblico di WSJT-X, e si rispetta fino in fondo: la
+versione di serializzazione dipende dallo schema dichiarato nel pacchetto
+(1 → `Qt_5_0`, 2 → `Qt_5_2`, 3 → `Qt_5_4`). Leggerlo con quella sbagliata non
+dà errore: dà numeri plausibili e falsi, che su uno strumento sono il peggio
+possibile.
+
+### Gli spot
+
+Il telefono **non** apre una propria linea telnet verso il cluster: quella la
+tiene già il PC, ed è quella giusta — un nodo non gradisce due sessioni dello
+stesso nominativo, e gli spot che contano sono quelli che l'operatore sta
+guardando sul computer, non un secondo flusso simile ma diverso.
+
+Per questo gli spot li rivende Decodium: il servizio `DecodiumSpotShare`
+(`Decodium-4.0/src/services/`) è il gemello della CAT condivisa — un
+interruttore, una porta (**4534** di serie), nessun comando accettato in
+entrata. Manda una riga JSON per messaggio:
+
+```
+{"tipo":"benvenuto","servizio":"decodium-spot-share","versione":1,"attesi":37}
+{"tipo":"spot","dxCall":"JA1YYY","frequency":14074.0,"band":"20m",...}
+{"tipo":"battito"}
+```
+
+Chi si collega riceve prima gli ultimi spot già raccolti — così non guarda una
+lista vuota finché il nodo non si degna — e poi quelli nuovi. Il battito ogni
+venti secondi serve a distinguere una linea viva e silenziosa da una caduta:
+su TCP le due cose si somigliano per minuti.
 
 ### Versione minima di Decodium
 
@@ -63,12 +104,22 @@ perfetto», che somiglia a una stazione che va benissimo.
 
 | File | Contenuto |
 |---|---|
-| `Main.qml` | schermata di collegamento + frontalino a tutto schermo |
+| `Main.qml` | le tre schermate, la barra in basso, le impostazioni di rete |
 | `Decometer.qml` | il frontalino, copia invariata dall'app completa |
+| `DecodeScreen.qml` | le decodifiche, con i conteggi per modo che fanno da filtro |
+| `ClusterScreen.qml` | gli spot, con i conteggi per banda che fanno da filtro |
 | `MeterBridge.{hpp,cpp}` | client TCP rigctl: poll del PTT, tre livelli, nient'altro |
-| `main.cpp` | avvio, registra `bridge` nel contesto QML |
+| `DecodeFeed.{hpp,cpp}` | ricevitore UDP del protocollo WSJT-X |
+| `SpotFeed.{hpp,cpp}` | client TCP del ritrasmettitore di spot |
+| `main.cpp` | avvio, registra `bridge`, `decodeFeed` e `spotFeed` nel contesto QML |
 | `android/` | manifest, gradle, icone |
 | `ios/` | `Info.plist`, icona, `configure_ios.sh`, keep-screen-on nativo |
+
+Le tre sorgenti non si conoscono fra loro ed è voluto: chi apre l'app per
+guardare la potenza mentre trasmette non deve vedersi fermare il quadrante
+perché il cluster non risponde. Ognuna dice da sé come sta — il puntino
+accanto al nome nella barra in basso — e ognuna, se la linea cade, se la
+riprende da sola.
 
 La superficie di proprietà di `MeterBridge` (`rigWatt`, `rigRos`, `rigAlc`,
 `meterVeri`, `catConnected`, …) ricalca deliberatamente quella di `AppBridge`
@@ -101,12 +152,24 @@ cmake --build build_desktop
 
 ## Stato
 
-Il protocollo è verificato end-to-end contro il server CAT di Decodium 4 e
-contro un server di prova: connessione, poll del PTT, lettura dei tre livelli
-in forma estesa, aggiornamento del quadrante. **Il layout su schermo di
-telefono non è ancora stato verificato su un dispositivo reale**: la prova
-desktop su Windows a scala 175% mostra un artefatto di composizione della
-finestra (il contenuto viene disegnato in coordinate logiche su una superficie
-di dimensione diversa) che non riguarda il layout in sé — le misure interne
-sono corrette — ma che impedisce di giudicare l'aspetto da lì. Va guardato sul
-telefono.
+I tre protocolli sono verificati end-to-end, contro Decodium 4 e contro
+sorgenti di prova:
+
+- **misure** — connessione, poll del PTT, lettura dei tre livelli in forma
+  estesa, aggiornamento del quadrante; e la ripresa da sola dopo una caduta
+  della linea (server tolto di mezzo per nove secondi, riconnessione 130 ms
+  dopo il suo ritorno, polling ripartito);
+- **decodifiche** — pacchetti WSJT-X in FT8, FT4 e FT2 letti con lo schema
+  dichiarato, conteggi per modo esatti, `Status` interpretato (frequenza,
+  modo, trasmettitore acceso);
+- **spot** — benvenuto, spot già raccolti all'arrivo, spot nuovi in tempo
+  reale, filtro per banda.
+
+**Il layout su schermo di telefono non è ancora stato verificato su un
+dispositivo reale.** L'artefatto della prova desktop su Windows a scala 175%
+ha però un nome: il processo non dichiara la consapevolezza del DPI, così
+Windows virtualizza la finestra (480×900 punti compressi in 274×514 pixel) e
+il disegno non ci sta. Avviando con `QT_QPA_PLATFORM=windows:dpiawareness=2`
+la finestra torna larga 480 punti e il contenuto coincide — è così che sono
+state guardate le schermate qui sopra. Su Android e iOS non si presenta,
+perché lì il DPI lo gestisce il sistema. Resta da guardare sul telefono.

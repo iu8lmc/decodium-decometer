@@ -1,10 +1,15 @@
-// Decometer standalone — app minima: uno schermo di collegamento e il
-// frontalino a tutto schermo. Il frontalino (Decometer.qml) e' lo STESSO file
-// dell'app completa di Decodium 4 mobile, non toccato: stessa geometria,
-// stessi colori, stesse formule. Qui cambia solo il contorno — non c'e' un
-// pannello piu' piccolo da cui "ingrandire", quindi si parte gia' a schermo
-// intero e il tasto che nell'app completa richiude il frontalino qui riporta
-// alla schermata di collegamento, che e' il posto sensato dove tornare.
+// Decometer standalone. Tre finestre sulla stazione che sta al PC, e una
+// schermata di rete per collegarle:
+//
+//   MISURE   il frontalino RF (Decometer.qml), lo STESSO file dell'app
+//            completa di Decodium 4 mobile, non toccato;
+//   DECODE   il traffico UDP delle decodifiche, per modo;
+//   CLUSTER  gli spot del cluster DX che Decodium sta ricevendo.
+//
+// Le tre sorgenti sono indipendenti: una puo' funzionare mentre le altre
+// tacciono, e ognuna dice da se' come sta. E' voluto — chi apre l'app per
+// guardare la potenza mentre trasmette non deve vedersi bloccare il quadrante
+// perche' il cluster non risponde.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -17,126 +22,312 @@ ApplicationWindow {
     title: qsTr("Decometer")
     color: "#0B0E12"
 
-    // true finche' non si e' mai tentato un collegamento: mostra la
-    // schermata di rete invece del frontalino. Una volta connessi, un calo
-    // della linea lo dice gia' da solo il frontalino ("NO CAT LINK", ambra):
-    // il tasto in alto a destra (sempre visibile perche' ingrandito e'
-    // sempre vero, qui) riporta a questa schermata per ricollegarsi altrove.
+    readonly property color colInk:   "#E8ECEF"
+    readonly property color colLabel: "#8A939C"
+    readonly property color colMuted: "#5B6670"
+    readonly property color colEdge:  "#262D34"
+    readonly property color colPanel: "#14181D"
+    readonly property color colCyan:  "#27C4D4"
+    readonly property color colGreen: "#46D67C"
+    readonly property color colAmber: "#FFB454"
+
+    // true finche' non si e' mai tentato un collegamento: mostra la schermata
+    // di rete invece delle misure. Una volta collegati, un calo della linea lo
+    // dice gia' da se' ogni schermata.
     property bool showSettings: bridge.lastHost.length === 0
 
-    // ------------------------------------------------------------ impostazioni
+    // ---------------------------------------------------------- impostazioni
     Item {
         id: settingsScreen
         anchors.fill: parent
         visible: win.showSettings
         z: 10
 
-        ColumnLayout {
-            anchors.centerIn: parent
-            width: Math.min(parent.width - 48, 420)
-            spacing: 18
+        Flickable {
+            anchors.fill: parent
+            anchors.margins: 20
+            contentHeight: colonna.implicitHeight
+            clip: true
 
-            Label {
-                text: qsTr("Decometer")
-                color: "#E8ECEF"
-                font.pixelSize: 28
-                font.bold: true
-                Layout.alignment: Qt.AlignHCenter
-            }
-            Label {
-                text: qsTr("Potenza, ROS e ALC dalla radio di Decodium 4, in rete locale.")
-                color: "#8A939C"
-                font.pixelSize: 14
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignHCenter
-            }
+            ColumnLayout {
+                id: colonna
+                width: parent.width
+                spacing: 14
 
-            Rectangle { height: 1; color: "#262D34"; Layout.fillWidth: true; Layout.topMargin: 8 }
-
-            Label { text: qsTr("Indirizzo IP del PC"); color: "#8A939C"; font.pixelSize: 13 }
-            TextField {
-                id: hostField
-                Layout.fillWidth: true
-                placeholderText: qsTr("es. 192.168.1.50")
-                text: bridge.lastHost
-                color: "#E8ECEF"
-                font.pixelSize: 18
-                inputMethodHints: Qt.ImhPreferLatin
-            }
-
-            Label { text: qsTr("Porta (server CAT condiviso di Decodium 4)"); color: "#8A939C"; font.pixelSize: 13 }
-            TextField {
-                id: portField
-                Layout.fillWidth: true
-                text: bridge.lastPort > 0 ? String(bridge.lastPort) : "4533"
-                color: "#E8ECEF"
-                font.pixelSize: 18
-                inputMethodHints: Qt.ImhDigitsOnly
-                validator: IntValidator { bottom: 1; top: 65535 }
-            }
-
-            Label {
-                Layout.fillWidth: true
-                Layout.topMargin: 4
-                text: bridge.catStatus
-                color: bridge.catConnected ? "#46D67C" : "#FFB454"
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-            }
-
-            Button {
-                id: connecting
-                Layout.fillWidth: true
-                Layout.topMargin: 8
-                text: qsTr("Connetti")
-                enabled: hostField.text.trim().length > 0
-                onClicked: {
-                    bridge.catConnect(hostField.text.trim(), parseInt(portField.text, 10) || 4533)
-                    win.showSettings = false
+                Label {
+                    text: qsTr("Decometer")
+                    color: colInk
+                    font.pixelSize: 28
+                    font.bold: true
+                    Layout.alignment: Qt.AlignHCenter
                 }
-            }
+                Label {
+                    text: qsTr("Misure, decodifiche e spot dalla stazione di Decodium 4, in rete locale.")
+                    color: colLabel
+                    font.pixelSize: 14
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
+                }
 
-            Label {
-                Layout.fillWidth: true
-                Layout.topMargin: 12
-                text: qsTr("Sul PC: apri Decodium 4, attiva il server CAT condiviso nelle Impostazioni e leggi qui l'IP della rete locale. Serve la stessa rete WiFi, non internet.")
-                color: "#5B6670"
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
+                // -------------------------------------------------- misure RF
+                Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 6 }
+                Label { text: qsTr("MISURE — server CAT condiviso"); color: colCyan; font.pixelSize: 12; font.bold: true }
+
+                Label { text: qsTr("Indirizzo IP del PC"); color: colLabel; font.pixelSize: 13 }
+                TextField {
+                    id: hostField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("es. 192.168.1.50")
+                    text: bridge.lastHost
+                    color: colInk
+                    font.pixelSize: 18
+                    inputMethodHints: Qt.ImhPreferLatin
+                }
+
+                Label { text: qsTr("Porta (CAT condivisa di Decodium 4)"); color: colLabel; font.pixelSize: 13 }
+                TextField {
+                    id: portField
+                    Layout.fillWidth: true
+                    text: bridge.lastPort > 0 ? String(bridge.lastPort) : "4533"
+                    color: colInk
+                    font.pixelSize: 18
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 1; top: 65535 }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: bridge.catStatus
+                    color: bridge.catConnected ? colGreen : colAmber
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+
+                // ------------------------------------------------ decodifiche
+                Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 6 }
+                Label { text: qsTr("DECODE — traffico UDP"); color: colCyan; font.pixelSize: 12; font.bold: true }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Decodium manda gia' le decodifiche in UDP. Sul PC: Impostazioni → Reporting → UDP Server, con l'indirizzo di questo telefono e la porta qui sotto.")
+                    color: colMuted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+
+                Label { text: qsTr("Porta in ascolto"); color: colLabel; font.pixelSize: 13 }
+                TextField {
+                    id: udpPortField
+                    Layout.fillWidth: true
+                    text: String(decodeFeed.port)
+                    color: colInk
+                    font.pixelSize: 18
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 1; top: 65535 }
+                }
+
+                Label { text: qsTr("Gruppo multicast (solo se il PC manda in multicast)"); color: colLabel; font.pixelSize: 13 }
+                TextField {
+                    id: udpGroupField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("vuoto = normale")
+                    text: decodeFeed.group
+                    color: colInk
+                    font.pixelSize: 18
+                    inputMethodHints: Qt.ImhPreferLatin
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: decodeFeed.status
+                    color: decodeFeed.listening ? colGreen : colAmber
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+
+                // ----------------------------------------------------- cluster
+                Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 6 }
+                Label { text: qsTr("CLUSTER — spot condivisi"); color: colCyan; font.pixelSize: 12; font.bold: true }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Gli spot li rivende Decodium: sul PC va accesa la condivisione degli spot. L'indirizzo e' lo stesso delle misure, la porta no.")
+                    color: colMuted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+
+                Label { text: qsTr("Porta degli spot"); color: colLabel; font.pixelSize: 13 }
+                TextField {
+                    id: spotPortField
+                    Layout.fillWidth: true
+                    text: spotFeed.port > 0 ? String(spotFeed.port) : "4534"
+                    color: colInk
+                    font.pixelSize: 18
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 1; top: 65535 }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: spotFeed.status
+                    color: spotFeed.connected ? colGreen : colAmber
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+
+                // ---------------------------------------------------- schermo
+                Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 6 }
+                Switch {
+                    id: schermoAcceso
+                    Layout.fillWidth: true
+                    text: qsTr("Schermo sempre acceso")
+                    checked: bridge.keepScreenOn
+                    onToggled: bridge.keepScreenOn = checked
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Un misuratore che si spegne da solo mentre si trasmette non e' un misuratore. Vale solo con l'app in primo piano.")
+                    color: colMuted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+
+                // ---------------------------------------------------- comandi
+                Button {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                    text: qsTr("Collega tutto")
+                    enabled: hostField.text.trim().length > 0
+                    onClicked: {
+                        var ip = hostField.text.trim()
+                        bridge.catConnect(ip, parseInt(portField.text, 10) || 4533)
+                        decodeFeed.listen(parseInt(udpPortField.text, 10) || 2237,
+                                          udpGroupField.text.trim())
+                        spotFeed.connectTo(ip, parseInt(spotPortField.text, 10) || 4534)
+                        win.showSettings = false
+                    }
+                }
+                Button {
+                    Layout.fillWidth: true
+                    visible: bridge.lastHost.length > 0
+                    text: qsTr("Torna alle misure")
+                    onClicked: win.showSettings = false
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 8
+                    Layout.bottomMargin: 20
+                    text: qsTr("Serve la stessa rete WiFi del PC, non internet. Le tre sorgenti sono indipendenti: se una non risponde, le altre continuano.")
+                    color: colMuted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
             }
         }
     }
 
-    // ---------------------------------------------------------------- misure
-    Item {
+    // -------------------------------------------------------------- schermate
+    ColumnLayout {
         anchors.fill: parent
         visible: !win.showSettings
+        spacing: 0
         z: 5
 
-        Decometer {
-            id: decometer
-            anchors.fill: parent
-            anchors.margins: 6
-            ingrandito: true
-            ingranditoDisponibile: false
-            onChiudiIntero: win.showSettings = true
+        StackLayout {
+            id: pile
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            currentIndex: barra.currentIndex
+
+            // --- misure --------------------------------------------------
+            Item {
+                Decometer {
+                    id: decometer
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    ingrandito: true
+                    ingranditoDisponibile: false
+                    onChiudiIntero: win.showSettings = true
+                }
+
+                // Via d'uscita quando il collegamento non c'e'. Compare SOLO
+                // quando serve davvero e sparisce appena la radio risponde,
+                // per non rubare spazio allo strumento mentre si trasmette.
+                Button {
+                    visible: !bridge.catConnected
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 20
+                    text: qsTr("Impostazioni di rete")
+                    onClicked: win.showSettings = true
+                }
+            }
+
+            // --- decodifiche ---------------------------------------------
+            DecodeScreen {}
+
+            // --- cluster --------------------------------------------------
+            ClusterScreen {}
         }
 
-        // Via d'uscita quando il collegamento non c'e'. Il tasto del frontalino
-        // e' minuscolo e sta in un angolo: con un indirizzo sbagliato ci si
-        // ritrovava davanti a un quadrante spento, senza un modo evidente di
-        // tornare a correggerlo. Questo compare SOLO quando serve davvero, e
-        // sparisce appena la radio risponde, per non rubare spazio allo
-        // strumento mentre si trasmette.
-        Button {
-            visible: !bridge.catConnected
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 28
-            text: qsTr("Impostazioni di rete")
-            onClicked: win.showSettings = true
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: colEdge }
+
+        // La barra sta in basso, dove arriva il pollice: questa e' un'app che
+        // si tiene in mano mentre si fa altro con l'altra.
+        TabBar {
+            id: barra
+            Layout.fillWidth: true
+            background: Rectangle { color: colPanel }
+
+            TabButton {
+                text: qsTr("Misure")
+                // Un puntino invece di una scritta d'errore: la barra deve
+                // dire come stanno le tre sorgenti senza diventare un
+                // pannello di controllo.
+                Rectangle {
+                    width: 6; height: 6; radius: 3
+                    color: bridge.catConnected ? colGreen : colMuted
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 6
+                }
+            }
+            TabButton {
+                text: qsTr("Decode")
+                Rectangle {
+                    width: 6; height: 6; radius: 3
+                    color: decodeFeed.listening ? colGreen : colMuted
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 6
+                }
+            }
+            TabButton {
+                text: qsTr("Cluster")
+                Rectangle {
+                    width: 6; height: 6; radius: 3
+                    color: spotFeed.connected ? colGreen : colMuted
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 6
+                }
+            }
+        }
+    }
+
+    // Il tasto Indietro di Android: dalle schermate secondarie riporta alle
+    // misure, dalle misure esce. Senza questo uscirebbe sempre, e chi guarda
+    // il cluster si troverebbe fuori dall'app per un gesto abituale.
+    Shortcut {
+        sequences: [StandardKey.Back, StandardKey.Cancel]
+        onActivated: {
+            if (win.showSettings && bridge.lastHost.length > 0)
+                win.showSettings = false
+            else if (barra.currentIndex !== 0)
+                barra.currentIndex = 0
+            else
+                Qt.quit()
         }
     }
 }

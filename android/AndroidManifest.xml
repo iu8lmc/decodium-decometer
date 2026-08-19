@@ -19,12 +19,19 @@
     android:versionName="-- %%INSERT_VERSION_NAME%% --">
     <!-- %%INSERT_PERMISSIONS -->
     <!-- %%INSERT_FEATURES -->
-    <!-- L'unico permesso che serve davvero: parlare in rete locale col server
-         CAT condiviso di Decodium 4. Niente microfono, niente audio, niente
-         USB, niente servizio in foreground — questa app legge tre numeri da
-         un socket e li disegna. -->
+    <!-- Rete locale e nient'altro: le misure dal server CAT condiviso, le
+         decodifiche dal traffico UDP che Decodium emette gia' di suo, gli
+         spot dal ritrasmettitore. Niente microfono, niente audio, niente USB,
+         niente servizio in foreground — questa app legge da tre
+         socket e disegna. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Serve solo per ricevere le decodifiche quando il PC le manda a un
+         gruppo multicast invece che all'indirizzo del telefono: Android
+         scarta i pacchetti di gruppo se nessuno tiene alzato il blocco
+         apposito, e l'app resterebbe in ascolto di un silenzio che sembra un
+         guasto. Con l'invio diretto non entra in gioco. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <supports-screens
         android:anyDensity="true"
         android:largeScreens="true"

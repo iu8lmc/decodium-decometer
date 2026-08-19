@@ -21,12 +21,16 @@ qt_add_executable(decometer
     main.cpp
     MeterBridge.cpp
     MeterBridge.hpp
+    DecodeFeed.cpp
+    DecodeFeed.hpp
+    SpotFeed.cpp
+    SpotFeed.hpp
 )
 
 qt_add_qml_module(decometer
     URI Decometer
     VERSION 1.0
-    QML_FILES Main.qml Decometer.qml
+    QML_FILES Main.qml Decometer.qml DecodeScreen.qml ClusterScreen.qml
 )
 
 target_link_libraries(decometer PRIVATE
