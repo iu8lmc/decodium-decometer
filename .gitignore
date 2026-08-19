@@ -8,6 +8,7 @@ build_desktop/
 *.o
 *.obj
 *.a
+__pycache__/
 
 # pacchetti finiti: li produce il workflow di GitHub Actions e li tiene come
 # artifact per 14 giorni. Tenerli anche qui aggiungeva 12 MB irrecuperabili
