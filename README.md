@@ -111,6 +111,38 @@ misuratore si rimpicciolisce tutto insieme. Pagare uno strumento più piccolo
 per tenere tre tasti sempre in vista non conviene, su una cosa che si guarda
 mentre si trasmette.
 
+### Cosa mostra, oltre ai tre misuratori
+
+Il frontalino ha quattro schermate, che si scorrono con le frecce SCREEN:
+potenza (FWD, REF, ROS), adattamento (return loss, mismatch loss, netta),
+pilotaggio (ALC, PEP, media) e **segnale** (dBm, S-meter, frequenza).
+
+Le ultime aggiunte vengono da un confronto con i wattmetri da tavolo — il
+MetroPWR FX778/4 in particolare — tenendo solo ciò che ha senso qui:
+
+- **frequenza e banda**, chieste alla radio dal CAT: un misuratore che non
+  dice *dove* si sta trasmettendo racconta metà della cosa. La banda compare
+  anche nella riga di stato, sempre visibile;
+- **dBm** accanto ai watt, per chi ragiona in decibel;
+- **S-meter in ricezione**: il quadrante non tace più a trasmettitore fermo.
+  Serve però che il server esponga il livello `STRENGTH` — `rigctld` di Hamlib
+  lo fa, il server CAT di Decodium 4 al momento **no**, e in quel caso si
+  legge «NO S-METER» invece di un numero inventato;
+- **HOLD**, che congela ciò che si vede. Su un telefono conta più che su uno
+  strumento da tavolo, perché lo si guarda *dopo* aver mollato il PTT, quando
+  i valori sarebbero già decaduti. Ferma la vista, non la misura: il ROS
+  continua a essere letto e l'allarme continua a valere;
+- **allarme di ROS** con soglia scelta dall'utente e **vibrazione**. È il beep
+  del misuratore da tavolo tradotto per una cosa che sta in tasca: se si
+  trasmette dall'altra stanza, un allarme che si vede soltanto non è un
+  allarme.
+
+Restano fuori, e non per dimenticanza, le funzioni che richiedono l'hardware:
+calibrazioni, doppio sensore, commutatore d'antenna. E la parte reattiva
+dell'impedenza, che senza un sensore vettoriale non si può misurare — dal
+solo ROS si sa soltanto fra quali estremi può stare la parte resistiva, ed è
+esattamente quello che il quadrante dichiara.
+
 I valori non si inventano: se la radio non fornisce un misuratore compaiono
 due trattini e la riga di stato dice perché. A trasmettitore fermo i
 misuratori di trasmissione non misurano niente, e il server risponde "non

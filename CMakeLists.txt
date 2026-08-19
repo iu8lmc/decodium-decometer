@@ -73,7 +73,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     # ha anche portachiavi e sessione audio, inutili per un'app di sola
     # lettura CAT).
     target_sources(decometer PRIVATE ios/IosPlatform.mm)
-    target_link_libraries(decometer PRIVATE "-framework UIKit")
+    # AudioToolbox e' per la vibrazione dell'allarme di ROS alto: su iOS
+    # la vibrazione passa da AudioServicesPlaySystemSound.
+    target_link_libraries(decometer PRIVATE "-framework UIKit" "-framework AudioToolbox")
 
     target_sources(decometer PRIVATE ios/Assets.xcassets)
     set_source_files_properties(ios/Assets.xcassets PROPERTIES

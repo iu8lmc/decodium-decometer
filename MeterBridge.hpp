@@ -44,6 +44,25 @@ class MeterBridge : public QObject
     Q_PROPERTY(double rigRos READ rigRos NOTIFY rigCtlChanged)
     Q_PROPERTY(bool meterVeri READ meterVeri NOTIFY rigCtlChanged)
 
+    // Frequenza e banda: sul FX77X sono in cima allo schermo perche' un
+    // misuratore senza sapere DOVE si sta trasmettendo dice meta' della cosa.
+    // Qui non serve un contatore: la frequenza la sa gia' la radio, e il CAT
+    // la da' calibrata.
+    Q_PROPERTY(double rigFreqHz READ rigFreqHz NOTIFY rigCtlChanged)
+    Q_PROPERTY(QString rigBand READ rigBand NOTIFY rigCtlChanged)
+    // S-meter, in ricezione. Hamlib lo da' in dB rispetto a S9: negativo
+    // sotto S9 (-6 dB per unita' S), positivo sopra.
+    Q_PROPERTY(int rigStrengthDb READ rigStrengthDb NOTIFY rigCtlChanged)
+    Q_PROPERTY(bool strengthVeri READ strengthVeri NOTIFY rigCtlChanged)
+
+    // Allarme di ROS alto: soglia scelta dall'utente e avviso che si sente
+    // anche senza guardare. Sul FX77X e' un beep; su un telefono che sta in
+    // tasca mentre si trasmette dall'altra stanza, la vibrazione arriva dove
+    // il beep non arriverebbe.
+    Q_PROPERTY(double swrAlarmSoglia READ swrAlarmSoglia WRITE setSwrAlarmSoglia NOTIFY alarmChanged)
+    Q_PROPERTY(bool swrAlarmVibra READ swrAlarmVibra WRITE setSwrAlarmVibra NOTIFY alarmChanged)
+    Q_PROPERTY(bool swrAlarmAttivo READ swrAlarmAttivo NOTIFY rigCtlChanged)
+
     // Schermo sempre acceso: un misuratore che si spegne da solo mentre si
     // trasmette non e' un misuratore. E' il flag della finestra
     // (FLAG_KEEP_SCREEN_ON), che Android rilascia da se' quando l'app va in
@@ -69,6 +88,21 @@ public:
     double rigRos() const { return m_rigRos; }
     bool meterVeri() const { return m_meterVeri; }
 
+    double rigFreqHz() const { return m_rigFreqHz; }
+    QString rigBand() const;
+    int rigStrengthDb() const { return m_rigStrengthDb; }
+    bool strengthVeri() const { return m_strengthVeri; }
+
+    double swrAlarmSoglia() const { return m_swrAlarmSoglia; }
+    void setSwrAlarmSoglia(double v);
+    bool swrAlarmVibra() const { return m_swrAlarmVibra; }
+    void setSwrAlarmVibra(bool on);
+    bool swrAlarmAttivo() const { return m_swrAlarmAttivo; }
+
+    // L'etichetta di banda dalla frequenza. Statica perche' e' una tabella,
+    // non uno stato: gli stessi confini che usa Decodium sul computer.
+    static QString bandaDaHz(double hz);
+
     bool keepScreenOn() const { return m_keepScreenOn; }
     void setKeepScreenOn(bool on);
 
@@ -82,6 +116,7 @@ public slots:
 
 signals:
     void keepScreenOnChanged();
+    void alarmChanged();
     void catChanged();
     void rigCtlChanged();
     void txActiveChanged();
@@ -96,6 +131,10 @@ private:
     void setPttState(bool active);
     void resetTxMeters();
     void applyKeepScreenOn();
+    // Un colpo di vibrazione. Il resto del programma non deve sapere come si
+    // fa su ciascun sistema.
+    void vibra(int ms);
+    void valutaAllarmeSwr();
 
     // catConnect/catDisconnect sono cio' che vuole l'UTENTE; queste tre sono
     // cio' che fa la MACCHINA per ottenerlo, e il ritentativo le riusa senza
@@ -154,6 +193,18 @@ private:
     double m_rigRos {1.0};
     bool m_meterVeri {false};
     QString m_livelloAtteso;      // nome del livello di cui si aspetta "Level Value:"
+
+    double m_rigFreqHz {0.0};
+    int m_rigStrengthDb {0};
+    bool m_strengthVeri {false};
+
+    double m_swrAlarmSoglia {2.5};
+    bool m_swrAlarmVibra {true};
+    bool m_swrAlarmAttivo {false};
+    // Quando ha vibrato l'ultima volta: un allarme che vibra dodici volte al
+    // secondo non e' un allarme, e' un guasto.
+    QElapsedTimer m_ultimaVibrazione;
+    static constexpr int kIntervalloVibrazione = 4000;
 
     bool m_keepScreenOn {true};
     // Vero da quando l'utente ha chiesto di collegarsi a quando chiede di

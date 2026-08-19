@@ -10,6 +10,7 @@
 
 #if defined(Q_OS_IOS)
 void iosSetIdleTimerDisabled(bool disabled);
+void iosVibra();
 #endif
 
 MeterBridge::MeterBridge(QObject* parent)
@@ -102,6 +103,35 @@ void MeterBridge::applyKeepScreenOn()
         constexpr jint kFlagKeepScreenOn = 128;   // WindowManager.LayoutParams
         win.callMethod<void>(on ? "addFlags" : "clearFlags", "(I)V", kFlagKeepScreenOn);
     });
+#endif
+}
+
+// Un colpo di vibrazione. E' il beep del misuratore da tavolo tradotto per
+// una cosa che sta in tasca: chi trasmette dall'altra stanza non guarda lo
+// schermo, e un allarme che si vede soltanto non e' un allarme.
+void MeterBridge::vibra(int ms)
+{
+#if defined(Q_OS_ANDROID)
+    int const durata = ms;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([durata] {
+        QJniObject ctx = QNativeInterface::QAndroidApplication::context();
+        if (!ctx.isValid()) return;
+        QJniObject nome = QJniObject::fromString(QStringLiteral("vibrator"));
+        QJniObject vib = ctx.callObjectMethod("getSystemService",
+                                              "(Ljava/lang/String;)Ljava/lang/Object;",
+                                              nome.object<jstring>());
+        if (!vib.isValid()) return;
+        if (!vib.callMethod<jboolean>("hasVibrator", "()Z")) return;
+        // vibrate(long) e' deprecato dall'API 26 ma c'e' ancora e funziona
+        // fin dalla 24, che e' il minimo di questa app: una VibrationEffect
+        // qui aggiungerebbe un ramo per due righe di guadagno.
+        vib.callMethod<void>("vibrate", "(J)V", jlong(durata));
+    });
+#elif defined(Q_OS_IOS)
+    Q_UNUSED(ms)   // iOS decide da se' la durata: la vibrazione e' una sola
+    iosVibra();
+#else
+    Q_UNUSED(ms)
 #endif
 }
 
@@ -271,18 +301,21 @@ void MeterBridge::onPoll()
         return;
     }
 
-    // Una sola write con tutto dentro: quattro comandi in un pacchetto invece
-    // di quattro scambi separati. I livelli si chiedono anche a trasmettitore
+    // Una sola write con tutto dentro: sei comandi in un pacchetto invece di
+    // sei scambi separati. I livelli si chiedono anche a trasmettitore
     // fermo, e non e' uno spreco: e' proprio cosi' che il primo valore arriva
     // INSIEME al primo "PTT alto" invece che un giro dopo. A riposo il server
     // risponde "non disponibile" e la risposta e' di pochi byte.
     if (m_rigMetersOn)
         m_cat->write("t\n"
+                     "+f\n"
                      "+\\get_level RFPOWER_METER_WATTS\n"
                      "+\\get_level SWR\n"
-                     "+\\get_level ALC\n");
+                     "+\\get_level ALC\n"
+                     "+\\get_level STRENGTH\n");
     else
-        m_cat->write("t\n");
+        m_cat->write("t\n"
+                     "+f\n");
 
     m_pollInVolo = true;
 }
@@ -309,6 +342,7 @@ void MeterBridge::resetTxMeters()
         m_rigRos = 1.0;
         m_rigAlc = 0;
         m_meterVeri = false;
+        m_swrAlarmAttivo = false;
         emit rigCtlChanged();
     }
 }
@@ -335,6 +369,12 @@ void MeterBridge::parseCatLines(const QByteArray& data)
         if (line.isEmpty()) continue;
 
         if (line.startsWith("RPRT")) {
+            // Se a mancare e' l'S-meter, si smette di dichiararlo valido:
+            // meglio due trattini che l'ultimo valore buono rimasto li'.
+            if (m_livelloAtteso == QLatin1String("STRENGTH") && m_strengthVeri) {
+                m_strengthVeri = false;
+                changed = true;
+            }
             // Errore riferito al livello appena annunciato: la misura non c'e'
             // (a riposo, o perche' la radio non la fornisce). Si dimentica
             // l'attesa, altrimenti il prossimo valore finirebbe nel campo
@@ -350,6 +390,42 @@ void MeterBridge::parseCatLines(const QByteArray& data)
             m_livelloAtteso = QString::fromLatin1(line.mid(10)).trimmed();
             continue;
         }
+        // La frequenza. Il server CAT di Decodium risponde a "f" con il numero
+        // nudo anche quando lo si chiede in forma estesa (+f): il prefisso lo
+        // onora per i livelli, non per questo comando. Quindi la si riconosce
+        // per quello che e' — una riga di sole cifre, e grande: un numero
+        // simile non puo' essere ne' lo stato del PTT ne' un livello, che
+        // arrivano sempre annunciati da una riga "get_level:".
+        if (m_livelloAtteso.isEmpty() && line.size() >= 5) {
+            bool tuttoCifre = true;
+            for (char c : line) {
+                if (c < '0' || c > '9') { tuttoCifre = false; break; }
+            }
+            if (tuttoCifre) {
+                bool okf = false;
+                double const hz = QString::fromLatin1(line).toDouble(&okf);
+                if (okf && hz > 10000.0) {
+                    if (!qFuzzyCompare(hz, m_rigFreqHz)) {
+                        m_rigFreqHz = hz;
+                        changed = true;
+                    }
+                    continue;
+                }
+            }
+        }
+
+        // Forma estesa, se un giorno il server la usasse anche per la
+        // frequenza: si accetta comunque, costa due righe.
+        if (line.startsWith("Frequency:")) {
+            bool okf = false;
+            double const hz = QString::fromLatin1(line.mid(10)).trimmed().toDouble(&okf);
+            if (okf && hz > 0 && !qFuzzyCompare(hz, m_rigFreqHz)) {
+                m_rigFreqHz = hz;
+                changed = true;
+            }
+            continue;
+        }
+
         if (line.startsWith("Level Value:")) {
             bool okv = false;
             double const val = QString::fromLatin1(line.mid(12)).trimmed().toDouble(&okv);
@@ -358,6 +434,13 @@ void MeterBridge::parseCatLines(const QByteArray& data)
                     m_rigWatt = val; changed = true;
                 } else if (m_livelloAtteso == QLatin1String("SWR")) {
                     m_rigRos = val >= 1.0 ? val : 1.0; changed = true;
+                } else if (m_livelloAtteso == QLatin1String("STRENGTH")) {
+                    // Hamlib lo da' in dB rispetto a S9: -54 e' S0, 0 e' S9,
+                    // +20 e' S9+20. Si tiene com'e', perche' e' la scala che
+                    // l'operatore legge sulla radio.
+                    m_rigStrengthDb = qRound(val);
+                    m_strengthVeri = true;
+                    changed = true;
                 } else if (m_livelloAtteso == QLatin1String("ALC")) {
                     // Hamlib lo da' normalizzato 0..1: si riporta sulla scala
                     // 0-255 che il frontalino si aspetta, la stessa dell'ago
@@ -381,5 +464,75 @@ void MeterBridge::parseCatLines(const QByteArray& data)
             setPttState(line == "1");
         }
     }
-    if (changed) emit rigCtlChanged();
+    if (changed) {
+        valutaAllarmeSwr();
+        emit rigCtlChanged();
+    }
+}
+
+// La banda dalla frequenza. Gli stessi confini che usa Decodium sul computer:
+// una frequenza fuori da ogni banda amatoriale non si forza dentro la piu'
+// vicina, si lascia senza etichetta.
+QString MeterBridge::bandaDaHz(double hz)
+{
+    struct Banda { double da, a; char const* nome; };
+    static const Banda bande[] = {
+        {   135700.0,    137800.0, "2200m" }, {    472000.0,    479000.0, "630m" },
+        {  1800000.0,   2000000.0,  "160m" }, {   3500000.0,   4000000.0,   "80m" },
+        {  5250000.0,   5450000.0,   "60m" }, {   7000000.0,   7300000.0,   "40m" },
+        { 10100000.0,  10150000.0,   "30m" }, {  14000000.0,  14350000.0,   "20m" },
+        { 18068000.0,  18168000.0,   "17m" }, {  21000000.0,  21450000.0,   "15m" },
+        { 24890000.0,  24990000.0,   "12m" }, {  28000000.0,  29700000.0,   "10m" },
+        { 50000000.0,  54000000.0,    "6m" }, {  70000000.0,  71000000.0,    "4m" },
+        {144000000.0, 148000000.0,    "2m" }, { 222000000.0, 225000000.0, "1.25m" },
+        {420000000.0, 450000000.0,   "70cm"},
+    };
+    for (const Banda& b : bande) {
+        if (hz >= b.da && hz <= b.a)
+            return QString::fromLatin1(b.nome);
+    }
+    return {};
+}
+
+QString MeterBridge::rigBand() const
+{
+    return bandaDaHz(m_rigFreqHz);
+}
+
+void MeterBridge::setSwrAlarmSoglia(double v)
+{
+    // Sotto uno il ROS non esiste, e una soglia irraggiungibile e' un allarme
+    // spento senza dirlo.
+    double const s = qBound(1.1, v, 10.0);
+    if (qFuzzyCompare(s, m_swrAlarmSoglia)) return;
+    m_swrAlarmSoglia = s;
+    m_settings.setValue(QStringLiteral("swrAlarmSoglia"), s);
+    emit alarmChanged();
+}
+
+void MeterBridge::setSwrAlarmVibra(bool on)
+{
+    if (m_swrAlarmVibra == on) return;
+    m_swrAlarmVibra = on;
+    m_settings.setValue(QStringLiteral("swrAlarmVibra"), on);
+    emit alarmChanged();
+}
+
+// L'allarme guarda solo mentre si trasmette e solo con una lettura vera: a
+// riposo il ROS che resta stampato non e' una misura, e far vibrare il
+// telefono per un valore vecchio e' il modo piu' rapido per far disattivare
+// l'allarme all'utente.
+void MeterBridge::valutaAllarmeSwr()
+{
+    bool const alto = m_rigPtt && m_meterVeri && m_rigRos >= m_swrAlarmSoglia;
+    if (alto != m_swrAlarmAttivo)
+        m_swrAlarmAttivo = alto;
+    if (!alto || !m_swrAlarmVibra)
+        return;
+    // Un colpo ogni quattro secondi finche' dura: continuo sarebbe un guasto,
+    // uno solo si perde se il telefono e' in tasca.
+    if (m_ultimaVibrazione.isValid() && m_ultimaVibrazione.elapsed() < kIntervalloVibrazione)
+        return;
+    m_ultimaVibrazione.restart();
+    vibra(600);
 }

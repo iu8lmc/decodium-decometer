@@ -189,6 +189,50 @@ ApplicationWindow {
                     wrapMode: Text.WordWrap
                 }
 
+                // ------------------------------------------- allarme di ROS
+                Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 6 }
+                Label { text: qsTr("ALLARME ROS"); color: colCyan; font.pixelSize: 12; font.bold: true }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Il telefono vibra quando il ROS supera la soglia mentre trasmetti. Serve proprio quando non stai guardando lo schermo.")
+                    color: colMuted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Label { text: qsTr("Soglia"); color: colLabel; font.pixelSize: 13 }
+                    Repeater {
+                        model: [2.0, 2.5, 3.0, 5.0]
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool scelta: Math.abs(bridge.swrAlarmSoglia - modelData) < 0.01
+                            Layout.preferredWidth: 58
+                            Layout.preferredHeight: 34
+                            radius: 5
+                            color: scelta ? colCyan : colPanel
+                            border.color: colEdge
+                            border.width: 1
+                            Label {
+                                anchors.centerIn: parent
+                                text: modelData.toFixed(1)
+                                color: parent.scelta ? "#0B0E12" : colInk
+                                font.pixelSize: 14
+                                font.bold: parent.scelta
+                            }
+                            TapHandler { onTapped: bridge.swrAlarmSoglia = modelData }
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Switch {
+                    Layout.fillWidth: true
+                    text: qsTr("Vibrazione all'allarme")
+                    checked: bridge.swrAlarmVibra
+                    onToggled: bridge.swrAlarmVibra = checked
+                }
+
                 // ---------------------------------------------------- schermo
                 Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 6 }
                 Switch {

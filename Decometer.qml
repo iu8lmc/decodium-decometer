@@ -85,6 +85,24 @@ Item {
     function fmtW(v) { return v >= 100 ? v.toFixed(1) : v.toFixed(2) }
 
     // coefficiente di riflessione: rho = (ROS-1)/(ROS+1)
+    // Con HOLD acceso si mostra l'istantanea presa al momento del fermo.
+    readonly property real vFwdVista: hold ? holdFwd : pkFwdV
+    readonly property real vRefVista: hold ? holdRef : pkRefV
+    readonly property real vSwrVista: hold ? holdSwr : vSwr
+    readonly property real pepVista:  hold ? holdPep : pepW
+    readonly property real avgVista:  hold ? holdAvg : avgW
+
+    // La potenza in dBm, come la mostra un misuratore da laboratorio:
+    // 1 W = 30 dBm. Sotto il microwatt non si scrive un numero, perche'
+    // sarebbe rumore del misuratore, non segnale.
+    readonly property real fwdDbm: vFwdVista > 1e-6 ? 10 * Math.log(vFwdVista * 1000) / Math.LN10 : -99
+
+    // S-meter: Hamlib da' i dB rispetto a S9, sei per unita' S.
+    readonly property int sUnit: Math.max(0, Math.min(9, Math.round(9 + bridge.rigStrengthDb / 6)))
+    readonly property int sOver:  bridge.rigStrengthDb > 0 ? Math.round(bridge.rigStrengthDb / 10) * 10 : 0
+    readonly property string sTesto: sOver > 0 ? "S9+" + sOver : "S" + sUnit
+    readonly property bool sValido: catUp && bridge.strengthVeri && !txOn
+
     readonly property real rho: rawSwr > 1 ? (rawSwr - 1) / (rawSwr + 1) : 0
     readonly property real returnLossDb: rho > 0.0005 ? -20 * Math.log(rho) / Math.LN10 : 99
     readonly property real mismatchLossDb: rho > 0.0005 ? -10 * Math.log(1 - rho * rho) / Math.LN10 : 0
@@ -99,7 +117,11 @@ Item {
         if (!telemetry)        return qsTr("TELEMETRY OFF — ENABLE METERS")
         if (rfActive && !pwrValid && !swrValid) return qsTr("RIG REPORTS NO METER")
         var n = bridge.rigModel && bridge.rigModel.length ? bridge.rigModel : qsTr("connected")
-        return "CAT: " + n.toUpperCase()
+        // La banda accanto allo stato: un misuratore che non dice DOVE si sta
+        // trasmettendo racconta meta' della cosa, ed e' la prima riga del
+        // frontalino di ogni wattmetro da tavolo.
+        var b = bridge.rigBand
+        return "CAT: " + n.toUpperCase() + (b.length ? "  ·  " + b.toUpperCase() : "")
     }
     readonly property color statusColor: (!catUp || !telemetry) ? colAmber : colDim
 
@@ -124,7 +146,18 @@ Item {
     function effFs() { return fsArr[rangeIdx] }
 
     property int  screenIdx: 0
-    readonly property int screenCount: 3
+    readonly property int screenCount: 4
+
+    // HOLD: le letture restano ferme dove sono. Su uno strumento da tavolo
+    // serve a leggere con comodo; su un telefono serve di piu', perche' lo si
+    // guarda DOPO aver mollato il PTT, quando i valori sarebbero gia'
+    // decaduti. Non ferma le misure, ferma solo cio' che si vede.
+    property bool hold: false
+    property real holdFwd: 0
+    property real holdRef: 0
+    property real holdSwr: 1
+    property real holdPep: 0
+    property real holdAvg: 0
     property real clock: 0
 
     // ------------------------------------------------------------ balistica
@@ -529,19 +562,19 @@ Item {
                             Readout {
                                 visible: dm.screenIdx === 0
                                 tag: "FWD"; tint: dm.colCyan
-                                value: dm.pwrValid ? dm.fmtW(dm.pkFwdV) : "——"
+                                value: dm.pwrValid ? dm.fmtW(dm.vFwdVista) : "——"
                                 unit: "W"
                             }
                             Readout {
                                 visible: dm.screenIdx === 0
                                 tag: "REF"
-                                value: dm.pwrValid && dm.swrValid ? dm.pkRefV.toFixed(3) : "——"
+                                value: dm.pwrValid && dm.swrValid ? dm.vRefVista.toFixed(3) : "——"
                                 unit: "W"
                             }
                             Readout {
                                 visible: dm.screenIdx === 0
                                 tag: "SWR"; tint: dm.colAmber; valueSize: 22
-                                value: dm.swrValid ? dm.vSwr.toFixed(2) : "——"
+                                value: dm.swrValid ? dm.vSwrVista.toFixed(2) : "——"
                             }
 
                             // schermata 2 — adattamento
@@ -574,14 +607,35 @@ Item {
                             Readout {
                                 visible: dm.screenIdx === 2
                                 tag: "PEP"; tint: dm.colCyan
-                                value: dm.pwrValid ? dm.fmtW(dm.pepW) : "——"
+                                value: dm.pwrValid ? dm.fmtW(dm.pepVista) : "——"
                                 unit: "W"
                             }
                             Readout {
                                 visible: dm.screenIdx === 2
                                 tag: "AVG"; valueSize: 22
-                                value: dm.pwrValid ? dm.fmtW(dm.avgW) : "——"
+                                value: dm.pwrValid ? dm.fmtW(dm.avgVista) : "——"
                                 unit: "W"
+                            }
+
+                            // schermata 4 — segnale: la potenza nell'unita'
+                            // dei laboratori e il segnale in ricezione, che
+                            // sono le due cose che il quadrante non diceva.
+                            Readout {
+                                visible: dm.screenIdx === 3
+                                tag: "dBm"; tint: dm.colCyan
+                                value: dm.pwrValid ? dm.fwdDbm.toFixed(1) : "——"
+                            }
+                            Readout {
+                                visible: dm.screenIdx === 3
+                                tag: "RX"; tint: dm.colGreen
+                                value: dm.sValido ? dm.sTesto : "——"
+                            }
+                            Readout {
+                                visible: dm.screenIdx === 3
+                                tag: "FRQ"; valueSize: 20
+                                value: bridge.rigFreqHz > 0
+                                       ? (bridge.rigFreqHz / 1e6).toFixed(3) : "——"
+                                unit: "MHz"
                             }
                         }
 
@@ -595,25 +649,27 @@ Item {
                                 x: 14
                                 spacing: 3
                                 Text {
-                                    text: dm.screenIdx === 2 ? qsTr("TX TIME") : qsTr("IMPEDANCE")
+                                    text: dm.screenIdx === 2 ? qsTr("TX TIME")
+                                          : dm.screenIdx === 3 ? qsTr("BAND")
+                                          : qsTr("IMPEDANCE")
                                     font.pixelSize: 9; font.letterSpacing: 1; font.family: "monospace"
                                     color: dm.colDim
                                     bottomPadding: 3
                                 }
                                 Text {
-                                    visible: dm.screenIdx !== 2
+                                    visible: dm.screenIdx < 2
                                     text: dm.swrValid ? "|Γ| " + dm.rho.toFixed(3) : "|Γ| —"
                                     font.pixelSize: 13; font.family: "monospace"
                                     color: "#9FB3BC"
                                 }
                                 Text {
-                                    visible: dm.screenIdx !== 2
+                                    visible: dm.screenIdx < 2
                                     text: dm.swrValid ? "R " + dm.rMin.toFixed(1) + "–" + dm.rMax.toFixed(1) : "R —"
                                     font.pixelSize: 13; font.family: "monospace"
                                     color: "#9FB3BC"
                                 }
                                 Text {
-                                    visible: dm.screenIdx !== 2
+                                    visible: dm.screenIdx < 2
                                     text: qsTr("X: needs vector sensor")
                                     width: 116
                                     wrapMode: Text.WordWrap
@@ -628,6 +684,24 @@ Item {
                                     }
                                     font.pixelSize: 17; font.bold: true; font.family: "monospace"
                                     color: "#9FB3BC"
+                                }
+                                // Schermata del segnale: la banda in chiaro,
+                                // che e' l'informazione che si cerca quando
+                                // si guarda la frequenza.
+                                Text {
+                                    visible: dm.screenIdx === 3
+                                    text: bridge.rigBand.length ? bridge.rigBand.toUpperCase() : "—"
+                                    font.pixelSize: 20; font.bold: true; font.family: "monospace"
+                                    color: dm.colCyan
+                                }
+                                Text {
+                                    visible: dm.screenIdx === 3
+                                    text: dm.sValido ? qsTr("RX SIGNAL")
+                                                     : (dm.txOn ? qsTr("TRANSMITTING") : qsTr("NO S-METER"))
+                                    width: 116
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: 8
+                                    color: dm.colDim
                                 }
                             }
                         }
@@ -722,19 +796,55 @@ Item {
                         }
                     }
                 }
-                Rectangle {
+                Row {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: 158; height: 34; radius: 5
-                    color: dm.autoRange ? Qt.rgba(0.153, 0.769, 0.831, 0.14) : "#181D22"
-                    border.width: 1
-                    border.color: dm.autoRange ? dm.colCyan : "#2A3138"
-                    Text {
-                        anchors.centerIn: parent
-                        text: qsTr("AUTO")
-                        font.pixelSize: 10; font.bold: true; font.letterSpacing: 2
-                        color: dm.autoRange ? dm.colCyan : dm.colLabel
+                    spacing: 10
+                    Rectangle {
+                        width: 74; height: 34; radius: 5
+                        color: dm.autoRange ? Qt.rgba(0.153, 0.769, 0.831, 0.14) : "#181D22"
+                        border.width: 1
+                        border.color: dm.autoRange ? dm.colCyan : "#2A3138"
+                        Text {
+                            anchors.centerIn: parent
+                            text: qsTr("AUTO")
+                            font.pixelSize: 10; font.bold: true; font.letterSpacing: 2
+                            color: dm.autoRange ? dm.colCyan : dm.colLabel
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: dm.autoRange = !dm.autoRange }
                     }
-                    MouseArea { anchors.fill: parent; onClicked: dm.autoRange = !dm.autoRange }
+                    // HOLD ferma cio' che si vede, non cio' che si misura: il
+                    // ROS continua a essere letto e l'allarme continua a
+                    // valere, altrimenti sarebbe un modo per non accorgersi
+                    // di un guasto all'antenna.
+                    Rectangle {
+                        width: 74; height: 34; radius: 5
+                        color: dm.hold ? Qt.rgba(1.0, 0.706, 0.329, 0.16) : "#181D22"
+                        border.width: 1
+                        border.color: dm.hold ? dm.colAmber : "#2A3138"
+                        Text {
+                            anchors.centerIn: parent
+                            text: qsTr("HOLD")
+                            font.pixelSize: 10; font.bold: true; font.letterSpacing: 2
+                            color: dm.hold ? dm.colAmber : dm.colLabel
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                if (!dm.hold) {
+                                    // L'istantanea si prende ADESSO: da qui in
+                                    // avanti i numeri sotto continuano a
+                                    // muoversi, ma quelli mostrati restano
+                                    // questi.
+                                    dm.holdFwd = dm.pkFwdV
+                                    dm.holdRef = dm.pkRefV
+                                    dm.holdSwr = dm.vSwr
+                                    dm.holdPep = dm.pepW
+                                    dm.holdAvg = dm.avgW
+                                }
+                                dm.hold = !dm.hold
+                            }
+                        }
+                    }
                 }
 
                 // Le altre due finestre dell'app del telefono. Stesso taglio
