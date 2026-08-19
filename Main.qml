@@ -17,15 +17,35 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: win
     visible: true
-    // Misura di un telefono, ma non piu' grande dello schermo su cui si apre:
-    // sul PC di prova una finestra piu' alta del monitor viene ridimensionata
-    // dal sistema mentre il contenuto resta disposto per l'altezza chiesta, e
-    // se ne vede solo un pezzo. Sul telefono non cambia nulla, perche' li' la
-    // finestra e' a schermo intero comunque.
-    width: Math.min(480, Screen.desktopAvailableWidth - 40)
-    height: Math.min(900, Screen.desktopAvailableHeight - 60)
+    // Misura di un telefono, per la prova sul PC.
+    //
+    // SUL TELEFONO NON SI TOCCANO, e non e' pignoleria: Qt 6 su Android sa
+    // fare finestre che non occupano tutto lo schermo, quindi una dimensione
+    // che ci sta dentro viene rispettata davvero. Chiedendo 480x900 non
+    // succedeva niente — piu' grandi dello schermo, il sistema le riportava a
+    // schermo intero — ma un limite calcolato sullo schermo disponibile
+    // (320x742 su un telefono da 360x802 punti) ci sta comodamente, e l'app
+    // finiva disegnata in un angolo con due bande vuote. Su iOS lo stesso
+    // codice si vedeva perfetto, perche' li' le dimensioni richieste vengono
+    // ignorate: e' cosi' che un difetto puo' presentarsi su un telefono e non
+    // sull'altro.
+    //
+    // Il Binding con "when" lascia la proprieta' INTATTA dove non serve,
+    // invece di assegnarle un altro valore: sul telefono la dimensione resta
+    // quella che decide il sistema, che e' l'unica che sa qual e'.
+    Binding on width {
+        when: !win.suTelefono
+        value: Math.min(480, Screen.desktopAvailableWidth - 40)
+    }
+    Binding on height {
+        when: !win.suTelefono
+        value: Math.min(900, Screen.desktopAvailableHeight - 60)
+    }
     title: qsTr("Decometer")
     color: "#0B0E12"
+
+    readonly property bool suTelefono: Qt.platform.os === "android"
+                                       || Qt.platform.os === "ios"
 
     readonly property color colInk:   "#E8ECEF"
     readonly property color colLabel: "#8A939C"
