@@ -78,7 +78,7 @@ Autore: Martino, IU8LMC — iu8lmc@gmail.com
 | Tag | Utilità, Radio |
 | Email di contatto | iu8lmc@gmail.com |
 | Sito web | https://github.com/iu8lmc/decodium-decometer |
-| Informativa privacy | *(vedi `privacy.md`: va pubblicata a un indirizzo raggiungibile)* |
+| Informativa privacy | `store/privacy-policy.html`, da pubblicare a un indirizzo raggiungibile |
 | Classificazione | adatta a tutti — nessun contenuto sensibile |
 | App a pagamento | no, gratuita, senza acquisti né pubblicità |
 
@@ -100,10 +100,30 @@ Da dichiarare nel questionario del Play Console:
 | Cosa | File | Stato |
 |---|---|---|
 | Icona 512×512 | `store/icona-512.png` | pronta |
-| Immagine in evidenza 1024×500 | `store/feature-1024x500.png` | pronta |
+| Immagine in evidenza (IT) | `store/in-evidenza-1024x500-it.png` | pronta |
+| Immagine in evidenza (EN) | `store/in-evidenza-1024x500-en.png` | pronta |
 | Screenshot telefono (min 2, max 8) | — | **da fare sul telefono** |
 | Screenshot tablet 7" e 10" | — | facoltativi, ma l'app dichiara il supporto iPad/tablet |
 
 Gli screenshot vanno presi dal dispositivo vero, non dalla prova desktop: il
 negozio li mostra come sono e una finestra di PC si riconosce. Ne bastano tre,
 uno per schermata — quadrante, decodifiche, spot.
+
+**Vanno però passati per `store/prepara-schermate.py` prima di caricarli.** Le
+catture del telefono sono 720×1604, cioè 2,23 a 1, mentre il negozio non
+accetta nulla di più allungato di 9:16 (1,78 a 1) e rifiuta il file dopo che si
+è compilata tutta la scheda. Lo script aggiunge due bande dello stesso fondo
+dell'app invece di ritagliare, così non si perde né il quadrante né la riga
+delle letture.
+
+## Scheda in inglese
+
+La descrizione lunga inglese è in `store/descrizione-lunga-en.txt`. Descrizione
+breve: `Forward power, SWR and ALC of your radio, from the PC over local WiFi.`
+(74 caratteri).
+
+## Note per i revisori
+
+In `store/note-revisione.md`, in italiano e in inglese. **Non è facoltativo**:
+senza, chi esamina l'app la apre, trova tre schermate che dicono "non
+connesso" e la respinge come non funzionante.

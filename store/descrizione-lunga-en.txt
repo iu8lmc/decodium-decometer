@@ -1,0 +1,60 @@
+Decometer brings the RF meter of Decodium 4 to your phone: forward power, SWR
+and ALC of your radio, read from the PC over your home network.
+
+It matters when Decodium holds the radio. No other program can open the same
+serial port, and whoever operates from the next room — or from the other side
+of the world — used to transmit without seeing how much power was going out,
+or whether the antenna was answering at all. This app opens that window.
+
+THE METER FACE
+It is the same instrument as on the computer, not a reduced version: same
+geometry, same colours, same formulas, same needle ballistics. If you know it
+on the desktop, you find it identical in your hand.
+
+Readings are never invented. When the radio does not provide a meter, two
+dashes appear and the status line says why. An instrument showing a plausible
+but false number is worse than one that stays silent — which is also why, with
+the transmitter at rest, the transmit meters read nothing instead of zero: a
+zero would say "no power, perfect SWR", which looks like a station working
+beautifully.
+
+FOUR SCREENS ON THE SAME FACE
+Power (forward, reflected, SWR), matching (return loss, mismatch loss, net
+power), drive (ALC, PEP, average) and signal (dBm, S-meter, frequency and
+band). HOLD freezes what you see — useful on a phone, where you look at the
+meter after releasing the PTT.
+
+DECODES
+The UDP traffic Decodium already emits, sorted by mode: FT8, FT4, FT2 and the
+others, with signal report, time offset and frequency. The counters at the top
+double as filters, to watch one mode at a time.
+
+DX CLUSTER SPOTS
+The spots your PC is receiving, filterable by band. Not a second telnet session
+to the node: the very same spots the operator has in front of them.
+
+SWR ALARM
+Choose a threshold and the phone vibrates when the SWR goes past it while you
+transmit. It is the bench wattmeter's beep, translated for something that sits
+in your pocket: an alarm you can only see is no alarm when you are in another
+room.
+
+WHAT IT DOES NOT DO
+It does not decode, does not transmit, does not touch the serial port, does not
+ask for the microphone. It is read-only. The only permission it needs is local
+network access.
+
+HOW IT CONNECTS
+On the PC, in Decodium 4, enable the shared CAT server. In the app, enter the
+PC address and port — from then on it reconnects on its own at every start, and
+picks the link back up by itself if the WiFi drops. A meter that stays dark
+after a network hiccup is not a meter.
+
+Requires the same WiFi network as the PC. Nothing goes through the internet and
+nothing needs to be exposed outside.
+
+REQUIREMENTS
+Decodium 4 version 1.0.565 or later, running on the PC.
+It also works against any Hamlib rigctld: it is the same protocol.
+
+Author: Martino, IU8LMC — iu8lmc@gmail.com

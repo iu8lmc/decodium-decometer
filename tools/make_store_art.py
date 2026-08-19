@@ -8,8 +8,9 @@ di la', che a loro volta vengono da Decometer.qml.
     python tools/make_store_art.py
 
 Produce in store/:
-    icona-512.png          l'icona alta risoluzione richiesta dalla scheda
-    feature-1024x500.png   l'immagine in evidenza in cima alla scheda
+    icona-512.png                  l'icona alta risoluzione della scheda
+    in-evidenza-1024x500-it.png    l'immagine in cima alla scheda, italiano
+    in-evidenza-1024x500-en.png    la stessa, per la scheda in inglese
 """
 import os
 import sys
@@ -51,7 +52,7 @@ def sfondo(larghezza, altezza):
     return img
 
 
-def feature():
+def feature(righe):
     L, A = 1024, 500
     img = sfondo(L, A)
     d = ImageDraw.Draw(img)
@@ -70,12 +71,8 @@ def feature():
         d.text((x, y), pezzo, font=f_nome, fill=colore)
         x += int(d.textlength(pezzo, font=f_nome))
 
-    d.text((72 + lato + 68, y + 96),
-           "Potenza, ROS e ALC della radio",
-           font=font(30), fill=COL_LABEL)
-    d.text((72 + lato + 68, y + 138),
-           "dal PC al telefono, in rete locale",
-           font=font(30), fill=COL_LABEL)
+    d.text((72 + lato + 68, y + 96), righe[0], font=font(30), fill=COL_LABEL)
+    d.text((72 + lato + 68, y + 138), righe[1], font=font(30), fill=COL_LABEL)
 
     # Una riga ambra corta sotto il testo: il colore dell'allarme del
     # quadrante, usato qui solo come firma visiva.
@@ -87,9 +84,18 @@ def feature():
 def main():
     os.makedirs(USCITA, exist_ok=True)
     disegna(512).save(os.path.join(USCITA, "icona-512.png"))
-    feature().save(os.path.join(USCITA, "feature-1024x500.png"))
+    # Due lingue, come per l'app sorella: la scheda del negozio si compila in
+    # italiano e in inglese, e un'immagine in evidenza in una lingua sola
+    # stona nell'altra scheda.
+    feature(["Potenza, ROS e ALC della radio",
+             "dal PC al telefono, in rete locale"]).save(
+        os.path.join(USCITA, "in-evidenza-1024x500-it.png"))
+    feature(["Forward power, SWR and ALC",
+             "from your PC to your phone, over WiFi"]).save(
+        os.path.join(USCITA, "in-evidenza-1024x500-en.png"))
     print("scritti:")
-    for nome in ("icona-512.png", "feature-1024x500.png"):
+    for nome in ("icona-512.png", "in-evidenza-1024x500-it.png",
+                 "in-evidenza-1024x500-en.png"):
         p = os.path.join(USCITA, nome)
         print(f"  {p}  {os.path.getsize(p)} byte")
 

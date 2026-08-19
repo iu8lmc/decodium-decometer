@@ -31,11 +31,24 @@ Minimo due, massimo otto, dal dispositivo vero. Il taglio consigliato: uno per
 schermata — quadrante, decodifiche, spot — più eventualmente la schermata del
 segnale. Su Android si fanno con volume-giù + tasto laterale.
 
+Poi vanno passati per lo script, **sempre**:
+
+```
+python store/prepara-schermate.py catture\*.png
+```
+
+Le catture del telefono sono 2,23 a 1 e il negozio non accetta nulla di più
+allungato di 1,78 a 1: le rifiuta al caricamento, dopo che si è compilata
+tutta la scheda. Lo script aggiunge due bande dello stesso fondo dell'app
+invece di ritagliare, così non si perde quello che si voleva mostrare. Le
+immagini pronte finiscono in `store/schermate/`.
+
 **4. Pubblica l'informativa privacy**
 
-Il testo è in `store/privacy.md`. Serve un indirizzo raggiungibile: la via più
-rapida è GitHub Pages sul repository, oppure il link diretto al file su GitHub.
-Il Play Console lo pretende anche dalle app che non raccolgono nulla.
+`store/privacy-policy.html` è già una pagina pronta, nello stesso formato usato
+per Decodium Mobile: si carica dov'è comodo (GitHub Pages sul repository è la
+via più rapida) e si incolla l'indirizzo nel Console, che lo pretende anche
+dalle app che non raccolgono nulla.
 
 ---
 
@@ -56,13 +69,16 @@ bundle al primo caricamento, e **da quel momento non si cambia più**.
 ### Scheda del negozio principale
 
 Nome, descrizione breve e descrizione completa sono in `store/scheda.md`, già
-entro i limiti di caratteri (30 / 80 / 4000).
+entro i limiti di caratteri (30 / 80 / 4000). La versione inglese della
+descrizione lunga è in `store/descrizione-lunga-en.txt`: conviene aggiungere
+la scheda in inglese, perché il pubblico dei radioamatori non è italiano.
 
 | Risorsa | File |
 |---|---|
 | Icona 512×512 | `store/icona-512.png` |
-| Immagine in evidenza 1024×500 | `store/feature-1024x500.png` |
-| Screenshot telefono | quelli fatti al punto 3 |
+| Immagine in evidenza (IT) | `store/in-evidenza-1024x500-it.png` |
+| Immagine in evidenza (EN) | `store/in-evidenza-1024x500-en.png` |
+| Screenshot telefono | quelli preparati al punto 3 |
 
 Categoria **Strumenti**, email di contatto `iu8lmc@gmail.com`, sito
 `https://github.com/iu8lmc/decodium-decometer`.
@@ -85,15 +101,12 @@ la fascia per tutti.
 ### Contenuti dell'app
 
 - **Annunci:** nessuno.
-- **Accesso all'app:** tutte le funzioni sono disponibili senza credenziali.
-  Va però segnalato ai revisori che **serve un PC con Decodium 4 sulla stessa
-  rete WiFi**, altrimenti troveranno tre schermate che dicono "non connesso" e
-  potrebbero considerarla non funzionante. Testo suggerito per le note:
-
-  > L'app è un misuratore remoto: mostra potenza, ROS e ALC di una radio
-  > gestita da Decodium 4 su un PC nella stessa rete locale. Senza quel PC le
-  > schermate restano vuote per progetto, e la riga di stato lo dichiara. Non
-  > esiste un modo di provarla senza la stazione radio.
+- **Accesso all'app:** tutte le funzioni sono disponibili senza credenziali,
+  ma il testo per i revisori va incollato lo stesso. Sta in
+  `store/note-revisione.md`, in italiano e in inglese, ed è lo stesso
+  accorgimento usato per Decodium Mobile: senza, chi esamina l'app la apre,
+  trova tre schermate che dicono "non connesso" e la respinge come non
+  funzionante.
 
 - **Pubblico di destinazione:** 18+ o 13+, a scelta; non è rivolta ai bambini.
 
