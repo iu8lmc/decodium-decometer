@@ -16,6 +16,29 @@ Item {
     // pila e non deve saperlo.
     signal tornaAlleMisure()
 
+    // I tasti di sistema arrivano col fondo chiaro del tema predefinito: sul
+    // nero del quadrante il "torna indietro" diventava un disco bianco che
+    // copriva la propria freccia, e "Pulisci" spariva scuro su scuro. Si
+    // disegnano qui, con gli stessi colori di tutto il resto.
+    component Tasto: Button {
+        id: bt
+        implicitHeight: 34
+        padding: 10
+        contentItem: Label {
+            text: bt.text
+            color: bt.enabled ? colInk : colMuted
+            font.pixelSize: 14
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+        background: Rectangle {
+            radius: 5
+            color: bt.down ? colEdge : colPanel
+            border.color: colEdge
+            border.width: 1
+        }
+    }
+
     readonly property color colInk:   "#E8ECEF"
     readonly property color colLabel: "#8A939C"
     readonly property color colMuted: "#5B6670"
@@ -37,9 +60,9 @@ Item {
             // Il ritorno al quadrante: senza barra, questa e' l'unica via
             // indietro che si vede: il tasto di sistema su Android c'e', ma
             // su iPhone non esiste e nessuno lo cerca a schermo.
-            Button {
+            Tasto {
                 text: "‹"
-                implicitWidth: 34
+                implicitWidth: 40
                 onClicked: schermo.tornaAlleMisure()
             }
             Rectangle {
@@ -56,7 +79,7 @@ Item {
                 font.pixelSize: 13
                 elide: Text.ElideRight
             }
-            Button {
+            Tasto {
                 text: qsTr("Pulisci")
                 enabled: spotFeed.count > 0
                 onClicked: spotFeed.clear()

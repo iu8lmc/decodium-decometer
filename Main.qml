@@ -102,6 +102,28 @@ ApplicationWindow {
     readonly property color colGreen: "#46D67C"
     readonly property color colAmber: "#FFB454"
 
+    // I tasti di sistema arrivano col fondo chiaro del tema predefinito, che
+    // su questo nero stona e in un caso rendeva illeggibile la propria
+    // scritta. Si disegnano qui, con gli stessi colori del resto.
+    component Tasto: Button {
+        id: bt
+        implicitHeight: 40
+        padding: 12
+        contentItem: Label {
+            text: bt.text
+            color: bt.enabled ? colInk : colMuted
+            font.pixelSize: 15
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+        background: Rectangle {
+            radius: 5
+            color: bt.down ? colEdge : colPanel
+            border.color: bt.enabled ? colCyan : colEdge
+            border.width: 1
+        }
+    }
+
     // true finche' non si e' mai tentato un collegamento: mostra la schermata
     // di rete invece delle misure. Una volta collegati, un calo della linea lo
     // dice gia' da se' ogni schermata.
@@ -321,7 +343,7 @@ ApplicationWindow {
                 }
 
                 // ---------------------------------------------------- comandi
-                Button {
+                Tasto {
                     Layout.fillWidth: true
                     Layout.topMargin: 10
                     text: qsTr("Collega tutto")
@@ -335,7 +357,7 @@ ApplicationWindow {
                         win.showSettings = false
                     }
                 }
-                Button {
+                Tasto {
                     Layout.fillWidth: true
                     visible: bridge.lastHost.length > 0
                     text: qsTr("Torna alle misure")
@@ -360,7 +382,7 @@ ApplicationWindow {
                 Label { text: qsTr("CONTATTI"); color: colCyan; font.pixelSize: 12; font.bold: true }
                 Label {
                     Layout.fillWidth: true
-                    text: qsTr("Decometer 1.0 — Martino, IU8LMC")
+                    text: qsTr("Decometer %1 — Martino, IU8LMC").arg(Qt.application.version)
                     color: colInk
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
@@ -416,7 +438,7 @@ ApplicationWindow {
                 // Via d'uscita quando il collegamento non c'e'. Compare SOLO
                 // quando serve davvero e sparisce appena la radio risponde,
                 // per non rubare spazio allo strumento mentre si trasmette.
-                Button {
+                Tasto {
                     visible: !bridge.catConnected
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom

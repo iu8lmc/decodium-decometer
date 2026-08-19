@@ -25,6 +25,9 @@ int main(int argc, char* argv[])
     QGuiApplication app(argc, argv);
     app.setOrganizationName(QStringLiteral("Decodium"));
     app.setApplicationName(QStringLiteral("Decometer"));
+    // Da qui la legge il QML come Qt.application.version: una versione scritta
+    // due volte e' una versione che prima o poi ne dice una sbagliata.
+    app.setApplicationVersion(QStringLiteral(DECOMETER_VERSION));
 
     // Tre sorgenti indipendenti, tre oggetti che non si conoscono fra loro:
     // il quadrante non deve fermarsi perche' il cluster tace, e viceversa.

@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.21)
 project(Decometer VERSION 1.1 LANGUAGES CXX)
 
+# LA VERSIONE SI SCRIVE QUI E BASTA. Prima compariva a mano in quattro posti —
+# le proprieta' Android, il bundle iOS, la riga dei contatti nel QML — e infatti
+# si e' disallineata: sul telefono si leggeva "Decometer 1.0" mentre il
+# pacchetto era gia' 1.1.0.
+set(DECOMETER_VERSION "1.1.0")
+
 # Decometer standalone (Android + iOS): SOLO il frontalino RF di Decodium 4 e
 # il client di rete che lo alimenta. Nessun decoder, nessun FFTW/Boost/Opus,
 # nessuna seriale: legge potenza/ROS/ALC dal server CAT condiviso di Decodium
@@ -37,6 +43,10 @@ target_link_libraries(decometer PRIVATE
     Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network
 )
 
+# La versione arriva fin dentro il QML, che la mostra nei contatti.
+target_compile_definitions(decometer PRIVATE
+    DECOMETER_VERSION="${DECOMETER_VERSION}")
+
 # ---- Android -----------------------------------------------------------------
 if(ANDROID)
     # Il nome del pacchetto e' DEFINITIVO una volta pubblicato: non e' lo
@@ -49,7 +59,7 @@ if(ANDROID)
         # accetta due volte lo stesso, e non si torna indietro. Va alzato a
         # OGNI pacchetto caricato, anche quando il nome resta uguale.
         QT_ANDROID_VERSION_CODE 2
-        QT_ANDROID_VERSION_NAME "1.1.0"
+        QT_ANDROID_VERSION_NAME "${DECOMETER_VERSION}"
         QT_ANDROID_TARGET_SDK_VERSION 36
         QT_ANDROID_MIN_SDK_VERSION 24
         QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
@@ -89,8 +99,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "it.ft2.decometer"
         MACOSX_BUNDLE_BUNDLE_NAME "Decometer"
-        MACOSX_BUNDLE_BUNDLE_VERSION "1.1.0"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "1.1.0"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${DECOMETER_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${DECOMETER_VERSION}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist"
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "it.ft2.decometer"
         XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
