@@ -438,9 +438,20 @@ void MeterBridge::parseCatLines(const QByteArray& data)
                     // Hamlib lo da' in dB rispetto a S9: -54 e' S0, 0 e' S9,
                     // +20 e' S9+20. Si tiene com'e', perche' e' la scala che
                     // l'operatore legge sulla radio.
+                    //
+                    // Questo NON alza meterVeri: quella bandiera dice che i
+                    // misuratori di TRASMISSIONE hanno una lettura vera, ed e'
+                    // cio' su cui il quadrante decide se mostrare potenza e
+                    // ROS o due trattini. L'S-meter e' l'unico livello che
+                    // risponde anche a trasmettitore fermo: alzandola avrebbe
+                    // fatto comparire "SWR 1.00" e la prima tacca accesa
+                    // mentre non si trasmetteva, cioe' una misura perfetta che
+                    // nessuno aveva misurato.
                     m_rigStrengthDb = qRound(val);
                     m_strengthVeri = true;
                     changed = true;
+                    m_livelloAtteso.clear();
+                    continue;
                 } else if (m_livelloAtteso == QLatin1String("ALC")) {
                     // Hamlib lo da' normalizzato 0..1: si riporta sulla scala
                     // 0-255 che il frontalino si aspetta, la stessa dell'ago
