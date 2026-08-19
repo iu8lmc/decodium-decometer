@@ -43,12 +43,18 @@ tutta la scheda. Lo script aggiunge due bande dello stesso fondo dell'app
 invece di ritagliare, così non si perde quello che si voleva mostrare. Le
 immagini pronte finiscono in `store/schermate/`.
 
-**4. Pubblica l'informativa privacy**
+**4. L'informativa privacy — GIÀ FATTA**
 
-`store/privacy-policy.html` è già una pagina pronta, nello stesso formato usato
-per Decodium Mobile: si carica dov'è comodo (GitHub Pages sul repository è la
-via più rapida) e si incolla l'indirizzo nel Console, che lo pretende anche
-dalle app che non raccolgono nulla.
+È pubblicata su GitHub Pages e risponde:
+
+| Voce del Console | Indirizzo |
+|---|---|
+| Informativa sulla privacy | `https://iu8lmc.github.io/decodium-decometer/privacy.html` |
+| Sito web dell'app | `https://iu8lmc.github.io/decodium-decometer/` |
+
+Le pagine stanno in `docs/` e sono servite dal ramo `decode-e-cluster`. **Se un
+giorno quel ramo viene cancellato dopo il merge, le pagine spariscono**: prima
+di cancellarlo, in Impostazioni → Pages va spostata l'origine su `main`.
 
 ---
 
