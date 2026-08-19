@@ -451,8 +451,21 @@ Item {
                     var sFnow = Math.max(0, (dm.vSwr - 1) / (dm.vSwr + 1))
                     arc(580, 20, 64, cl(dm.vFwd / fs), cl(dm.pkFwdV / fs), pwCol)
                     arc(520, 15, 46, cl(dm.vRef / (fs * 0.2)), cl(dm.pkRefV / (fs * 0.2)), pwCol)
-                    arc(460, 15, 34,
-                        dm.swrValid ? cl(sFnow) : 0,
+
+                    // La scala del ROS comincia da 1.0, non da zero: li' non
+                    // c'e' l'assenza di misura, c'e' l'adattamento perfetto.
+                    // L'arco pero' e' pilotato dal coefficiente di riflessione,
+                    // che a ROS 1.00 vale zero netto: nessuna tacca si
+                    // accendeva, e la condizione migliore possibile finiva per
+                    // somigliare a "nessuna lettura". Con una misura valida si
+                    // accende sempre la prima tacca, che sulla scala e' proprio
+                    // 1.0 — e la mezza tacca serve perche' un segmento si
+                    // illumina quando il suo centro rientra nella frazione.
+                    // Sugli altri due archi non si fa: li' lo zero e' davvero
+                    // niente watt, e accendere una tacca direbbe il falso.
+                    var nSwr = 34
+                    arc(460, 15, nSwr,
+                        dm.swrValid ? Math.max(0.5 / nSwr, cl(sFnow)) : 0,
                         dm.swrValid ? cl(dm.pkSwrV) : 0, swCol)
                     if (dm.alcValid) {
                         arc(430, 10, 24, cl(dm.rawAlc / 100), 0,
