@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Decometer VERSION 1.0 LANGUAGES CXX)
+project(Decometer VERSION 1.1 LANGUAGES CXX)
 
 # Decometer standalone (Android + iOS): SOLO il frontalino RF di Decodium 4 e
 # il client di rete che lo alimenta. Nessun decoder, nessun FFTW/Boost/Opus,
@@ -45,8 +45,11 @@ if(ANDROID)
     set_target_properties(decometer PROPERTIES
         QT_ANDROID_PACKAGE_NAME "com.ft2.decometer"
         QT_ANDROID_APP_NAME "Decometer"
-        QT_ANDROID_VERSION_CODE 1
-        QT_ANDROID_VERSION_NAME "1.0.0"
+        # Il codice di versione e' un numero che sale e basta: il negozio non
+        # accetta due volte lo stesso, e non si torna indietro. Va alzato a
+        # OGNI pacchetto caricato, anche quando il nome resta uguale.
+        QT_ANDROID_VERSION_CODE 2
+        QT_ANDROID_VERSION_NAME "1.1.0"
         QT_ANDROID_TARGET_SDK_VERSION 36
         QT_ANDROID_MIN_SDK_VERSION 24
         QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
@@ -86,8 +89,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "it.ft2.decometer"
         MACOSX_BUNDLE_BUNDLE_NAME "Decometer"
-        MACOSX_BUNDLE_BUNDLE_VERSION "1.0"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
+        MACOSX_BUNDLE_BUNDLE_VERSION "1.1.0"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "1.1.0"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist"
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "it.ft2.decometer"
         XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"

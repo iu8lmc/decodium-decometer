@@ -199,6 +199,11 @@ Il pacchetto è `com.ft2.decometer` — diverso da `com.ft2.decodium`, perché s
 negozio è un prodotto separato, con la propria scheda. Una volta pubblicato
 **non si cambia più**.
 
+Il **codice di versione** (`QT_ANDROID_VERSION_CODE` in `CMakeLists.txt`) è un
+numero che sale e basta: il negozio non accetta due volte lo stesso e non si
+torna indietro. Va alzato a ogni pacchetto caricato, anche quando il nome
+della versione resta uguale.
+
 ### Play Store
 ```
 aab_android.bat                   REM produce l'AAB, NON firmato
