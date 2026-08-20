@@ -31,8 +31,8 @@ Se `Decometer — misuratore RF` viene rifiutato per il trattino lungo, usare
 | Campo | Valore |
 |---|---|
 | Email di contatto | `iu8lmc@gmail.com` |
-| Sito web | `https://iu8lmc.github.io/decodium-decometer/` |
-| Informativa sulla privacy | `https://iu8lmc.github.io/decodium-decometer/privacy.html` |
+| Sito web | `https://www.ft2.it` |
+| Informativa sulla privacy | `https://community.ft2.it/downloads/privacy-decometer.html` |
 | Codice sorgente | `https://github.com/iu8lmc/decodium-decometer` |
 | Sviluppatore | Martino, IU8LMC |
 

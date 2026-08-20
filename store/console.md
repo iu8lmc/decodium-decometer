@@ -43,18 +43,20 @@ tutta la scheda. Lo script aggiunge due bande dello stesso fondo dell'app
 invece di ritagliare, così non si perde quello che si voleva mostrare. Le
 immagini pronte finiscono in `store/schermate/`.
 
-**4. L'informativa privacy — GIÀ FATTA**
+**4. Pubblica l'informativa privacy**
 
-È pubblicata su GitHub Pages e risponde:
+Carica `store/privacy-decometer.html` sul tuo sito, dove sta gia' quella
+dell'app sorella:
 
-| Voce del Console | Indirizzo |
-|---|---|
-| Informativa sulla privacy | `https://iu8lmc.github.io/decodium-decometer/privacy.html` |
-| Sito web dell'app | `https://iu8lmc.github.io/decodium-decometer/` |
+```
+https://community.ft2.it/downloads/privacy-decometer.html
+```
 
-Le pagine stanno in `docs/` e sono servite dal ramo `decode-e-cluster`. **Se un
-giorno quel ramo viene cancellato dopo il merge, le pagine spariscono**: prima
-di cancellarlo, in Impostazioni → Pages va spostata l'origine su `main`.
+GitHub Pages **non e' una strada**: questo repository e' privato, e su un
+repository privato Pages richiede un piano a pagamento. Provandolo, le pagine
+hanno risposto per pochi minuti e poi sono state disattivate — un indirizzo
+che muore dopo la pubblicazione lascerebbe la scheda del negozio con un
+collegamento morto, che e' motivo di sospensione.
 
 ---
 
