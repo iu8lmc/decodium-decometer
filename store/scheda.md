@@ -78,7 +78,7 @@ Autore: Martino, IU8LMC — iu8lmc@gmail.com
 | Tag | Utilità, Radio |
 | Email di contatto | iu8lmc@gmail.com |
 | Sito web | https://github.com/iu8lmc/decodium-decometer |
-| Informativa privacy | `store/privacy-policy.html`, da pubblicare a un indirizzo raggiungibile |
+| Informativa privacy | `store/privacy-decometer.html` → `https://community.ft2.it/downloads/privacy-decometer.html` |
 | Classificazione | adatta a tutti — nessun contenuto sensibile |
 | App a pagamento | no, gratuita, senza acquisti né pubblicità |
 
