@@ -880,19 +880,44 @@ Item {
                                 // che sembrano una scoperta e sono una divisione
                                 // per zero.
                                 Text {
+                                    id: rendimento
                                     visible: dm.screenIdx === 4
                                     readonly property real pdc: bridge.rigVd * bridge.rigId
-                                    readonly property bool calcolabile:
+                                    readonly property bool cePerTutti:
                                         bridge.vdVeri && bridge.idVeri && dm.pwrValid && pdc > 1
-                                    text: calcolabile
-                                          ? "η " + Math.min(100, dm.vFwdVista / pdc * 100).toFixed(0) + "%"
-                                          : qsTr("η —")
-                                    font.pixelSize: 15; font.family: "monospace"
+                                    readonly property real eta:
+                                        cePerTutti ? dm.vFwdVista / pdc * 100 : 0
+                                    // LA GUARDIA. Un finale a stato solido in classe
+                                    // AB sta fra il 40 e il 55 per cento, e il limite
+                                    // teorico della classe B e' 78,5: sopra il 70 il
+                                    // problema non e' un PA straordinario, e' una
+                                    // delle due letture fuori scala.
+                                    //
+                                    // Su una FT-991 misurata davvero: 11,86 V x
+                                    // 10,00 A per 94,9 W erogati fa l'80 per cento,
+                                    // e quella corrente tonda sa di fondo scala
+                                    // saturato. Mostrarlo sarebbe un numero
+                                    // lusinghiero e falso — esattamente cio' che
+                                    // questo strumento non fa da nessuna altra parte.
+                                    readonly property bool credibile:
+                                        cePerTutti && eta > 5 && eta <= 70
+                                    text: credibile ? "η " + eta.toFixed(0) + "%"
+                                          : (cePerTutti ? qsTr("η fuori scala") : qsTr("η —"))
+                                    font.pixelSize: credibile ? 15 : 12
+                                    font.family: "monospace"
                                     color: {
-                                        if (!calcolabile) return "#9FB3BC"
-                                        var e = dm.vFwdVista / pdc * 100
-                                        return e < 25 ? dm.colRed : (e < 40 ? dm.colAmber : dm.colGreen)
+                                        if (!credibile) return cePerTutti ? dm.colAmber : "#9FB3BC"
+                                        return eta < 25 ? dm.colRed : (eta < 40 ? dm.colAmber : dm.colGreen)
                                     }
+                                }
+                                Text {
+                                    visible: dm.screenIdx === 4 && rendimento.cePerTutti
+                                             && !rendimento.credibile
+                                    text: qsTr("la radio non da' Vd·Id in unita' attendibili")
+                                    width: 116
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: 8
+                                    color: dm.colDim
                                 }
                                 Text {
                                     visible: dm.screenIdx === 4
