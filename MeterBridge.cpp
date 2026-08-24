@@ -43,9 +43,9 @@ MeterBridge::MeterBridge(QObject* parent)
     connect(m_scoperta, &DecoPortDiscovery::radiosChanged,
             this, &MeterBridge::radiosTrovateChanged);
     if (!m_authKey.isEmpty()) {
-        QByteArray const grezza = m_authKey.toUtf8();
-        m_link->setAuthKey(grezza);
-        m_scoperta->setAuthKey(grezza);
+        QByteArray const chiave = decoport::deriveKeyFromPassword(m_authKey);
+        m_link->setAuthKey(chiave);
+        m_scoperta->setAuthKey(chiave);
     }
     m_scoperta->start();
 
@@ -232,11 +232,16 @@ void MeterBridge::setAuthKey(const QString& k)
     if (pulita == m_authKey) return;
     m_authKey = pulita;
     m_settings.setValue(QStringLiteral("authKey"), m_authKey);
-    QByteArray const grezza = m_authKey.toUtf8();
-    if (m_link) m_link->setAuthKey(grezza);
+    // La password NON viaggia e non si usa com'e': se ne deriva una chiave, e
+    // quella derivazione deve essere identica alle due estremita'. Passando
+    // qui il testo grezzo il collegamento falliva in silenzio — i pacchetti
+    // arrivavano e venivano scartati uno per uno, senza un errore da nessuna
+    // parte, che e' il modo peggiore in cui una cosa possa non funzionare.
+    QByteArray const chiave = decoport::deriveKeyFromPassword(m_authKey);
+    if (m_link) m_link->setAuthKey(chiave);
     // Anche la scoperta: un annuncio non firmato puo' venire da chiunque, e una
     // radio falsa nell'elenco e' un invito a collegarsi alla macchina sbagliata.
-    if (m_scoperta) m_scoperta->setAuthKey(grezza);
+    if (m_scoperta) m_scoperta->setAuthKey(chiave);
     emit lastEndpointChanged();
 }
 
@@ -276,7 +281,7 @@ void MeterBridge::catConnect(const QString& host, int port)
 void MeterBridge::avviaConnessione()
 {
     if (!m_link) return;
-    m_link->setAuthKey(m_authKey.toUtf8());
+    m_link->setAuthKey(decoport::deriveKeyFromPassword(m_authKey));
     m_catStatus = m_ritardoRitentativo > kRitardoMin
                       ? tr("CAT: riconnessione a %1:%2...").arg(m_lastHost).arg(m_lastPort)
                       : tr("CAT: connessione a %1:%2...").arg(m_lastHost).arg(m_lastPort);
