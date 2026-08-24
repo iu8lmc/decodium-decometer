@@ -192,6 +192,20 @@ public slots:
     Q_INVOKABLE void sintonizza(double hz);
     Q_INVOKABLE void premiPtt(bool giu);
 
+    // IL TONO. In modo dati la radio trasmette soltanto cio' che le arriva dal
+    // codec audio: alzare il PTT nel silenzio da' zero watt, e uno sweep che
+    // misura il ROS a zero watt non misura niente. Questo manda al gateway un
+    // tono che lui suona nel codec della radio, ed e' esattamente il mestiere
+    // per cui DecoPort porta l'audio di trasmissione — c'e' persino una
+    // scadenza, lato gateway, che abbassa il PTT se l'audio non arriva.
+    //
+    // Non e' Q_INVOKABLE: lo chiama l'analizzatore, non il QML. Un tono in aria
+    // non deve poter partire da un tocco distratto su una schermata.
+    void inviaTono(double freqHz, int durataMs, double ampiezza);
+    // Quanto il gateway vuole ricevere l'audio in anticipo sull'istante in cui
+    // va suonato. E' una richiesta sua, non una nostra scelta.
+    int ritardoAudioMs() const;
+
 signals:
     void keepScreenOnChanged();
     void alarmChanged();

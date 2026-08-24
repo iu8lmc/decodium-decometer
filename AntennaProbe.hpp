@@ -93,6 +93,9 @@ class AntennaProbe : public QObject
     Q_PROPERTY(bool sweepInCorso READ sweepInCorso NOTIFY sweepChanged)
     Q_PROPERTY(double sweepAvanzamento READ sweepAvanzamento NOTIFY sweepChanged)
     Q_PROPERTY(QString sweepStato READ sweepStato NOTIFY sweepChanged)
+    // Il livello del tono, da 0 a 1. E' quello che decide quanta potenza esce a
+    // ogni passo, quindi e' una scelta dell'operatore e non un valore cablato.
+    Q_PROPERTY(double livelloTono READ livelloTono WRITE setLivelloTono NOTIFY sweepChanged)
 
 public:
     explicit AntennaProbe(MeterBridge* bridge, QObject* parent = nullptr);
@@ -120,6 +123,8 @@ public:
     double sweepAvanzamento() const { return m_sweepTotale > 0
                                           ? double(m_sweepFatti) / m_sweepTotale : 0.0; }
     QString sweepStato() const { return m_sweepStato; }
+    double livelloTono() const { return m_livelloTono; }
+    void setLivelloTono(double v);
 
     // Il coefficiente di riflessione previsto dal modello a una frequenza, per
     // la carta di Smith. Ritorna {re, im} normalizzati; lista vuota se non c'e'
@@ -201,6 +206,11 @@ private:
     // portante deve cadere da sola. La libreria DecoPort ha gia' una scadenza
     // sua lato gateway, ma una guardia che dipende dalla rete non e' una
     // guardia — questa sta sul telefono, dove sta il dito.
+    // Il tono: un solo tono a 1500 Hz, dentro il passabanda di qualunque filtro
+    // in modo dati, e con l'ampiezza scelta dall'operatore.
+    static constexpr double kFreqTono = 1500.0;
+    double m_livelloTono {0.25};
+
     static constexpr int kMsSintonia = 350;
     static constexpr int kMsPortante = 450;
     static constexpr int kMsPausa    = 250;

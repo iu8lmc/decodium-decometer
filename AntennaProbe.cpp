@@ -15,6 +15,7 @@ AntennaProbe::AntennaProbe(MeterBridge* bridge, QObject* parent)
     , m_settings(QStringLiteral("Decodium"), QStringLiteral("Decometer"))
 {
     m_ultimoCampione.start();
+    m_livelloTono = m_settings.value(QStringLiteral("livelloTono"), 0.25).toDouble();
 
     if (m_bridge) {
         // La raccolta passiva non chiede niente a nessuno: guarda le misure che
@@ -115,6 +116,15 @@ void AntennaProbe::cambiaBanda(const QString& nuova)
     carica();
     ricalcola();
     emit campioniChanged();
+}
+
+void AntennaProbe::setLivelloTono(double v)
+{
+    double const nuovo = qBound(0.0, v, 0.9);
+    if (qFuzzyCompare(nuovo + 1.0, m_livelloTono + 1.0)) return;
+    m_livelloTono = nuovo;
+    m_settings.setValue(QStringLiteral("livelloTono"), m_livelloTono);
+    emit sweepChanged();
 }
 
 void AntennaProbe::dimentica()
@@ -409,11 +419,20 @@ void AntennaProbe::passoSweep()
         m_sweep.start(kMsSintonia);
         break;
     }
-    case 1:     // portante su
+    case 1: {   // portante su, col tono che la fa esistere
+        // L'audio si manda PRIMA di alzare il PTT: il gateway lo trattiene fino
+        // all'istante in cui va suonato, quindi spedirlo in anticipo e' cio' che
+        // deve succedere. Alzare il PTT e poi cercare l'audio darebbe una
+        // portante muta all'inizio, proprio dove i misuratori si assestano.
+        m_bridge->inviaTono(kFreqTono, kMsPortante, m_livelloTono);
         m_bridge->premiPtt(true);
         m_sweepFase = 2;
-        m_sweep.start(kMsPortante);
+        // Si aspetta l'anticipo richiesto dal gateway PIU' la durata del tono:
+        // leggere prima significherebbe leggere la portante mentre e' ancora
+        // silenzio, cioe' zero watt, cioe' niente.
+        m_sweep.start(m_bridge->ritardoAudioMs() + kMsPortante);
         break;
+    }
     case 2: {   // leggi e giu'
         double const hz = m_bridge->rigFreqHz();
         double const ros = m_bridge->rigRos();

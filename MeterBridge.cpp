@@ -4,6 +4,8 @@
 
 #include <QVariantList>
 
+#include <cmath>
+
 #if defined(Q_OS_ANDROID)
 #include <QJniObject>
 #include <QtCore/private/qandroidextras_p.h>
@@ -304,6 +306,65 @@ void MeterBridge::programmaRitentativo()
     if (!m_vuoleConnesso) return;
     m_ritenta.start(m_ritardoRitentativo);
     m_ritardoRitentativo = qMin(kRitardoMax, m_ritardoRitentativo * 2);
+}
+
+int MeterBridge::ritardoAudioMs() const
+{
+    if (!m_link) return 200;
+    int const v = m_link->txAudioLeadMs();
+    return v > 0 ? v : 200;
+}
+
+void MeterBridge::inviaTono(double freqHz, int durataMs, double ampiezza)
+{
+    if (!m_link || !m_catConnected || durataMs <= 0) return;
+
+    // Il passo di campionamento lo DETTA il gateway, non lo scegliamo noi: lui
+    // annuncia dodicimila campioni al secondo e la sua riproduzione interpola
+    // per un fattore intero verso i quarantottomila del codec USB. Generare a
+    // un passo diverso darebbe un tono alla frequenza sbagliata. Se non l'ha
+    // ancora detto non si trasmette: e' un dato che arriva sempre nell'annuncio,
+    // e se manca vuol dire che non sappiamo con chi stiamo parlando.
+    decoport::Context const st = m_link->state();
+    if (!st.has(decoport::FieldSampleRate) || st.sampleRate == 0) return;
+    int const sr = int(st.sampleRate);
+    // L'ampiezza e' limitata sotto il fondo scala e non solo entro di esso: un
+    // tono a piena scala manda l'ALC a tappo e la misura di ROS viene presa su
+    // una portante distorta. Meglio meno potenza e un numero pulito.
+    double const amp = qBound(0.0, ampiezza, 0.9) * 32767.0;
+    int const totale = int(qint64(sr) * durataMs / 1000);
+    if (totale <= 0) return;
+
+    // Blocchi da quaranta millisecondi: abbastanza corti perche' un'interruzione
+    // dello sweep smetta subito di alimentare la portante, abbastanza lunghi da
+    // non riempire la rete di pacchetti minuscoli.
+    int const perPezzo = qMax(1, sr * 40 / 1000);
+
+    // L'istante in cui il primo campione va SUONATO, non spedito: il gateway lo
+    // trattiene fino a quel momento, ed e' cosi' che il jitter della rete non
+    // arriva alla radio.
+    // Stesso orologio del protocollo, non uno nostro: il gateway confronta questo
+    // istante col proprio e butta cio' che arriva con piu' di quaranta
+    // millisecondi di ritardo. L'anticipo di duecento che chiede e' anche il
+    // margine che copre lo scarto fra l'orologio del telefono e quello del PC.
+    quint64 const base = decoport::nowUnixNs()
+                         + quint64(ritardoAudioMs()) * 1000000ull;
+
+    double fase = 0.0;
+    double const passo = 2.0 * M_PI * freqHz / sr;
+    int fatti = 0;
+    while (fatti < totale) {
+        int const n = qMin(perPezzo, totale - fatti);
+        QVector<short> blocco(n);
+        for (int i = 0; i < n; ++i) {
+            blocco[i] = static_cast<short>(qRound(amp * std::sin(fase)));
+            fase += passo;
+            if (fase > 2.0 * M_PI) fase -= 2.0 * M_PI;
+        }
+        quint64 const quando = base + quint64(qint64(fatti) * 1000000000LL / sr);
+        m_link->sendTxAudio(blocco, quando);
+        fatti += n;
+    }
 }
 
 bool MeterBridge::puoTrasmettere() const

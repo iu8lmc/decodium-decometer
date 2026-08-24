@@ -477,9 +477,10 @@ Item {
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Questa è l'unica funzione dell'app che TRASMETTE: sposta la radio di " +
-                           "frequenza e alza la portante a ogni passo. Usala solo su una banda dove " +
-                           "puoi trasmettere, con la potenza già ridotta, e ascolta prima che sia " +
-                           "libera. Si ferma da sola e rimette la radio dov'era.")
+                           "frequenza e a ogni passo manda un tono, che è ciò che fa uscire la " +
+                           "potenza. Usala solo su una banda dove puoi trasmettere, con la potenza " +
+                           "già ridotta, e ascolta prima che sia libera. Si ferma da sola e rimette " +
+                           "la radio dov'era.")
                 color: schermo.colMuted
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
@@ -529,6 +530,45 @@ Item {
                         border.color: schermo.colEdge; border.width: 1
                     }
                 }
+            }
+
+            // IL LIVELLO DEL TONO. In modo dati la radio non ha una portante
+            // propria: emette quello che le arriva dal cavo audio, e quindi e'
+            // questo cursore — non la manopola della radio da sola — a decidere
+            // quanti watt escono a ogni passo. Parte basso apposta: per leggere
+            // un ROS bastano pochi watt, e meno se ne mettono in aria meglio e'.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Label {
+                    text: qsTr("tono")
+                    color: schermo.colLabel
+                    font.pixelSize: 12
+                }
+                Slider {
+                    id: cursoreTono
+                    Layout.fillWidth: true
+                    from: 0.05; to: 0.9
+                    value: antenna.livelloTono
+                    enabled: !antenna.sweepInCorso
+                    onMoved: antenna.livelloTono = value
+                }
+                Label {
+                    text: Math.round(cursoreTono.value * 100) + "%"
+                    color: schermo.colInk
+                    font.pixelSize: 12
+                    font.family: "monospace"
+                    Layout.preferredWidth: 34
+                    horizontalAlignment: Text.AlignRight
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Alza finché l'ALC comincia appena a muoversi, e fermati lì: oltre, " +
+                           "il tono si distorce e il ROS lo misuri su una portante sporca.")
+                color: schermo.colMuted
+                font.pixelSize: 10
+                wrapMode: Text.WordWrap
             }
 
             RowLayout {
