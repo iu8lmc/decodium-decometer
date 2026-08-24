@@ -299,103 +299,110 @@ Item {
         clip: true
         readonly property real fit: Math.min(width / dm.faceWidth, height / dm.faceHeight)
 
-        // ------------------------------------------------------- il carbonio
+        // ----------------------------------------------------- il vetro
         //
         // Il frontalino e' disegnato su una tela fissa di 900x420 e scalato per
         // entrarci dentro: su un telefono, che e' stretto e alto, e ancor piu'
-        // su un iPad, che e' 4:3, restano due bande scoperte sopra e sotto.
-        // Erano nere e basta, e un pannello strumenti che galleggia nel vuoto
-        // sembra una finestra che non ha finito di caricare.
+        // su un iPad, che e' 4:3, restano due bande scoperte. Erano nere e
+        // basta, e un pannello strumenti che galleggia nel vuoto sembra una
+        // finestra che non ha finito di caricare.
         //
-        // Il tessuto si disegna qui invece di arrivare da un'immagine: una
-        // texture in carbonio decente pesa qualche centinaio di kB e andrebbe
-        // messa a piu' risoluzioni per non sgranare sul retina dell'iPad.
-        // Disegnata, sono venti righe e nessun byte nel pacchetto.
+        // Ora sono vetro: la stessa superficie dell'iPad da spento, dove il
+        // nero non e' mai piatto ma raccoglie la luce della stanza in due
+        // strisce lunghe e appena accennate. E' l'illusione giusta per questo
+        // oggetto — lo strumento sembra incassato sotto lo stesso cristallo
+        // che stai toccando, invece che disegnato sopra un fondale.
         //
-        // Si dipinge UNA piastrella di 64 punti e la si fa ripetere alla scheda
-        // grafica: il Canvas lavora una volta sola, all'avvio.
-        Canvas {
-            id: piastrella
-            // 24 punti, quadranti da 12. La misura non e' estetica: lo schermo
-            // di un iPad ha due pixel per punto e quello di questo PC ne ha
-            // 1,75, quindi una piastrella da 64 punti finisce disegnata larga
-            // piu' di cento pixel e si legge come piastrelle di un pavimento,
-            // non come tessuto. Il carbonio si riconosce dal passo fitto: se lo
-            // vedi grande, non e' carbonio.
-            width: 24; height: 24
-            visible: false
-            onPaint: {
-                var ctx = getContext("2d")
-                var S = 24, Q = S / 2
-                ctx.fillStyle = "#0C0F12"
-                ctx.fillRect(0, 0, S, S)
-                // Armatura a saia 2x2: quattro quadranti, fibra alternata fra
-                // orizzontale e verticale. E' cio' che rende il carbonio
-                // riconoscibile — senza l'alternanza sembra una grata.
-                for (var qy = 0; qy < 2; ++qy) {
-                    for (var qx = 0; qx < 2; ++qx) {
-                        var orizz = ((qx + qy) % 2) === 0
-                        var x0 = qx * Q, y0 = qy * Q
-                        // Filati da un punto, alternati appena: due grigi
-                        // troppo diversi disegnano una grata a righe invece di
-                        // un intreccio.
-                        for (var i = 0; i < Q; ++i) {
-                            ctx.fillStyle = (i % 2 === 0) ? "#141920" : "#0F1419"
-                            if (orizz) ctx.fillRect(x0, y0 + i, Q, 1)
-                            else       ctx.fillRect(x0 + i, y0, 1, Q)
-                        }
-                        // La lucentezza va TRASVERSALE alla fibra, come nella
-                        // resina vera: e' il riflesso che fa leggere il verso
-                        // del filato, e messo per lungo il tessuto si appiattisce.
-                        // Poco nero in fondo, altrimenti ogni quadrante si
-                        // stacca dal vicino e tornano le piastrelle.
-                        var g = orizz ? ctx.createLinearGradient(x0, y0, x0, y0 + Q)
-                                      : ctx.createLinearGradient(x0, y0, x0 + Q, y0)
-                        g.addColorStop(0.0,  "rgba(255,255,255,0.000)")
-                        g.addColorStop(0.30, "rgba(255,255,255,0.045)")
-                        g.addColorStop(1.0,  "rgba(0,0,0,0.10)")
-                        ctx.fillStyle = g
-                        ctx.fillRect(x0, y0, Q, Q)
-                    }
-                }
-                tessuto.source = piastrella.toDataURL()
-            }
-            Component.onCompleted: requestPaint()
-        }
+        // Tutto in gradienti, niente immagini: un vetro e' liscio per
+        // definizione, quindi non c'e' trama da importare e non c'e' un solo
+        // byte in piu' nel pacchetto.
 
-        Image {
-            id: tessuto
-            anchors.fill: parent
-            fillMode: Image.Tile
-            // Qui l'interpolazione serve: i filati sono da un punto e su uno
-            // schermo a due pixel per punto un passo cosi' fitto sfarfalla
-            // quando si scorre. Ammorbidirlo costa un filo di nitidezza e
-            // toglie il tremolio.
-            smooth: true
-            cache: false
-        }
-
-        // Le bande sono il bordo dello strumento, non il centro dell'attenzione:
-        // si scuriscono verso l'esterno, cosi' l'occhio torna al quadrante.
+        // Il nero di fondo. Non uno solo: un vetro spento e' piu' scuro ai
+        // bordi e appena piu' chiaro dove la stanza si riflette.
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0;  color: Qt.rgba(0, 0, 0, 0.55) }
-                GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.0) }
-                GradientStop { position: 0.55; color: Qt.rgba(0, 0, 0, 0.0) }
-                GradientStop { position: 1.0;  color: Qt.rgba(0, 0, 0, 0.55) }
+                GradientStop { position: 0.0;  color: "#05070A" }
+                GradientStop { position: 0.38; color: "#0A0D12" }
+                GradientStop { position: 0.62; color: "#090C10" }
+                GradientStop { position: 1.0;  color: "#040608" }
             }
         }
 
-        // Un alone sotto il pannello: senza, il frontalino sta APPOGGIATO sul
-        // tessuto invece che incassato, e si vede che sono due disegni diversi.
+        // I riflessi. Due strisce diagonali, una netta e una che la segue piu'
+        // debole: e' cosi' che una finestra si specchia su uno schermo spento.
+        // Il taglio le tiene dentro anche quando sporgono, che e' voluto —
+        // devono entrare e uscire dal bordo, non essere centrate.
+        Item {
+            anchors.fill: parent
+            clip: true
+
+            Rectangle {
+                width: parent.width * 2.4
+                height: parent.height * 0.30
+                x: -parent.width * 0.6
+                y: parent.height * 0.06
+                rotation: -19
+                transformOrigin: Item.Center
+                // Il gradiente attraversa la striscia, non la percorre: e' cio'
+                // che le da' i bordi sfumati di un riflesso invece dei bordi
+                // netti di una banda colorata.
+                gradient: Gradient {
+                    GradientStop { position: 0.0;  color: Qt.rgba(1, 1, 1, 0.0) }
+                    GradientStop { position: 0.5;  color: Qt.rgba(1, 1, 1, 0.055) }
+                    GradientStop { position: 1.0;  color: Qt.rgba(1, 1, 1, 0.0) }
+                }
+            }
+
+            Rectangle {
+                width: parent.width * 2.4
+                height: parent.height * 0.16
+                x: -parent.width * 0.5
+                y: parent.height * 0.30
+                rotation: -19
+                transformOrigin: Item.Center
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.0) }
+                    GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.022) }
+                    GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.0) }
+                }
+            }
+
+            // In basso il vetro raccoglie pochissimo, ma non nulla: senza
+            // questa la meta' inferiore diventa un nero morto e si vede che
+            // l'effetto e' finto.
+            Rectangle {
+                width: parent.width * 2.4
+                height: parent.height * 0.22
+                x: -parent.width * 0.7
+                y: parent.height * 0.80
+                rotation: -19
+                transformOrigin: Item.Center
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.0) }
+                    GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.016) }
+                    GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.0) }
+                }
+            }
+        }
+
+        // Il filo di luce sul bordo alto: e' lo spessore del cristallo che
+        // prende luce, e da' profondita' a tutto il resto con una riga sola.
+        Rectangle {
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.07)
+        }
+
+        // Il pannello posato sopra: l'ombra sotto lo stacca dal vetro, e senza
+        // di essa sembra stampato sul cristallo invece che appoggiato.
         Rectangle {
             anchors.centerIn: parent
             width: dm.faceWidth * faceHolder.fit + 26
             height: dm.faceHeight * faceHolder.fit + 26
             radius: 18
             color: "transparent"
-            border.color: Qt.rgba(0, 0, 0, 0.45)
+            border.color: Qt.rgba(0, 0, 0, 0.55)
             border.width: 13
         }
 
