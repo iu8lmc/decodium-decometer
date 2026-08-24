@@ -172,7 +172,16 @@ ApplicationWindow {
     // si rimpicciolisce tutto insieme: pagare un misuratore piu' piccolo per
     // tre tasti sempre in vista non conviene, su uno strumento che si guarda
     // mentre si trasmette.
-    property int schermo: 0
+    // Lo schermo iniziale. L'argomento "--schermo N" serve a una cosa sola:
+    // fotografare una schermata per il negozio o per una verifica, senza
+    // doverci arrivare a furia di tocchi simulati. Non cambia niente per chi
+    // avvia l'app normalmente, e non salta nessun consenso: lo sweep resta
+    // fermo finche' qualcuno non lo avvia.
+    property int schermo: {
+        var a = Qt.application.arguments
+        var i = a.indexOf("--schermo")
+        return (i >= 0 && i + 1 < a.length) ? parseInt(a[i + 1]) || 0 : 0
+    }
 
     // ---------------------------------------------------------- impostazioni
     Item {
@@ -182,18 +191,24 @@ ApplicationWindow {
         z: 10
 
         Flickable {
+            id: scorrevoleImpostazioni
             anchors.fill: parent
             anchors.margins: 20
             anchors.topMargin: 20 + win.insetTop
             anchors.bottomMargin: 20 + win.insetBottom
             anchors.leftMargin: 20 + win.insetLeft
             anchors.rightMargin: 20 + win.insetRight
+            // Stessa correzione dell'analizzatore: senza una larghezza
+            // dichiarata la colonna prende quella del testo piu' lungo non
+            // mandato a capo, e le impostazioni escono di lato dallo schermo.
+            contentWidth: width
             contentHeight: colonna.implicitHeight
+            flickableDirection: Flickable.VerticalFlick
             clip: true
 
             ColumnLayout {
                 id: colonna
-                width: parent.width
+                width: scorrevoleImpostazioni.width
                 spacing: 14
 
                 Label {

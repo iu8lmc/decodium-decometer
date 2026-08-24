@@ -15,7 +15,10 @@ AntennaProbe::AntennaProbe(MeterBridge* bridge, QObject* parent)
     , m_settings(QStringLiteral("Decodium"), QStringLiteral("Decometer"))
 {
     m_ultimoCampione.start();
-    m_livelloTono = m_settings.value(QStringLiteral("livelloTono"), 0.25).toDouble();
+    // Passa dallo stesso filtro della scrittura: cio' che si e' fermato su un
+    // valore intermedio in una versione precedente non deve sopravvivere.
+    m_livelloTono = 0.0;
+    setLivelloTono(m_settings.value(QStringLiteral("livelloTono"), 0.25).toDouble());
 
     if (m_bridge) {
         // La raccolta passiva non chiede niente a nessuno: guarda le misure che
@@ -120,7 +123,10 @@ void AntennaProbe::cambiaBanda(const QString& nuova)
 
 void AntennaProbe::setLivelloTono(double v)
 {
-    double const nuovo = qBound(0.0, v, 0.9);
+    // A scatti da cinque centesimi, come il cursore che lo comanda: se il
+    // valore salvato non fosse arrotondato, cursore ed etichetta finirebbero
+    // per dire due cose diverse sulla stessa potenza.
+    double const nuovo = qBound(0.05, qRound(v * 20.0) / 20.0, 0.9);
     if (qFuzzyCompare(nuovo + 1.0, m_livelloTono + 1.0)) return;
     m_livelloTono = nuovo;
     m_settings.setValue(QStringLiteral("livelloTono"), m_livelloTono);

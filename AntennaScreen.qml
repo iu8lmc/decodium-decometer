@@ -85,14 +85,29 @@ Item {
     function mhz(hz) { return hz > 0 ? (hz / 1e6).toFixed(4) : "——" }
 
     Flickable {
+        id: scorrevole
         anchors.fill: parent
         anchors.margins: 10
+        // La LARGHEZZA del contenuto va dichiarata quanto l'altezza. Senza,
+        // resta a -1 e il contenitore interno non ha una larghezza da cui
+        // ereditare: la colonna ripiega sulla propria larghezza naturale, che
+        // e' quella del testo piu' lungo NON mandato a capo. Il risultato e'
+        // una colonna piu' larga della finestra, i paragrafi tagliati a meta'
+        // e la carta di Smith spinta mezza fuori dallo schermo — che e'
+        // esattamente il difetto per cui sembrava non venisse disegnata.
+        contentWidth: width
         contentHeight: colonna.implicitHeight
+        // Solo verticale: qui non c'e' niente da far scorrere di lato, e senza
+        // questo vincolo un dito storto trascina la pagina in orizzontale.
+        flickableDirection: Flickable.VerticalFlick
         clip: true
 
         ColumnLayout {
             id: colonna
-            width: parent.width
+            // Legata al Flickable per nome, non a "parent": il genitore di un
+            // figlio del Flickable e' il suo contentItem, non il Flickable, e
+            // sono due cose con larghezze diverse.
+            width: scorrevole.width
             spacing: 10
 
             // ------------------------------------------------------ testata
@@ -549,12 +564,21 @@ Item {
                     id: cursoreTono
                     Layout.fillWidth: true
                     from: 0.05; to: 0.9
+                    // A scatti da cinque: un livello di trasmissione deve
+                    // essere un numero che si puo' ripetere domani, non un
+                    // punto qualsiasi dove il dito si e' fermato.
+                    stepSize: 0.05
+                    snapMode: Slider.SnapAlways
                     value: antenna.livelloTono
                     enabled: !antenna.sweepInCorso
                     onMoved: antenna.livelloTono = value
                 }
                 Label {
-                    text: Math.round(cursoreTono.value * 100) + "%"
+                    // La percentuale la legge dal valore SALVATO, non dalla
+                    // posizione del cursore: sono due cose che si separano al
+                    // primo tocco, e fra le due l'unica che conta e' quella che
+                    // finira' davvero in aria.
+                    text: Math.round(antenna.livelloTono * 100) + "%"
                     color: schermo.colInk
                     font.pixelSize: 12
                     font.family: "monospace"
