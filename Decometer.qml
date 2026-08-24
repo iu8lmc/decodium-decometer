@@ -793,6 +793,10 @@ Item {
                         // saperla sarebbe la bugia piu' facile da raccontare.
                         Item {
                             width: 130; height: parent.height
+                            // Il taglio non e' pignoleria: e' la garanzia che
+                            // nessun testo esca dal frontalino, che e' disegnato
+                            // su tela fissa e non ha margini da prestare.
+                            clip: true
                             Rectangle { width: 1; height: parent.height; color: "#1A2228" }
                             Column {
                                 x: 14
@@ -853,9 +857,19 @@ Item {
                                     font.pixelSize: 8
                                     color: dm.colDim
                                 }
-                                // Pagina del finale: la potenza dissipata la
-                                // si stima da tensione e corrente, ma solo se
-                                // ci sono ENTRAMBE — con una sola delle due il
+                                // PAGINA DEL FINALE. Cinque numeri in una
+                                // colonna alta poco piu' di cento punti: la
+                                // prima versione ne metteva sette a corpo pieno
+                                // e uscivano DAL FRONTALINO, che su uno
+                                // strumento disegnato su tela fissa e' il
+                                // difetto piu' evidente possibile. Qui i corpi
+                                // sono scelti per stare, e il taglio sul
+                                // contenitore garantisce che restino dentro
+                                // anche se qualcuno domani ne aggiunge un
+                                // altro.
+                                //
+                                // La potenza continua si mostra solo con
+                                // ENTRAMBE tensione e corrente: con una sola il
                                 // prodotto non esiste, e mostrarne meta'
                                 // sarebbe peggio che non mostrarlo.
                                 Text {
@@ -863,22 +877,18 @@ Item {
                                     text: (bridge.vdVeri && bridge.idVeri)
                                           ? (bridge.rigVd * bridge.rigId).toFixed(0) + " W DC"
                                           : "— W DC"
-                                    font.pixelSize: 20; font.bold: true; font.family: "monospace"
+                                    font.pixelSize: 16; font.bold: true; font.family: "monospace"
                                     color: dm.colCyan
                                 }
-                                // IL RENDIMENTO. Prima non era calcolabile: serviva
-                                // la corrente di drain, che il protocollo non
-                                // portava. Un finale a stato solido in classe AB
-                                // sta fra il 40 e il 55 per cento; vederlo scendere
-                                // mentre la temperatura sale dice che il PA sta
-                                // soffrendo molto prima che intervenga una
-                                // protezione.
-                                //
-                                // Si mostra solo con TUTTI E TRE i dati presenti e
-                                // una potenza continua sensata: un rapporto con un
-                                // denominatore quasi nullo produce numeri enormi
-                                // che sembrano una scoperta e sono una divisione
-                                // per zero.
+                                // IL RENDIMENTO, con la sua guardia. Un finale a
+                                // stato solido in classe AB sta fra il 40 e il 55
+                                // per cento e il limite teorico della classe B e'
+                                // 78,5: sopra il 70 il problema non e' un PA
+                                // straordinario, e' una delle due letture fuori
+                                // scala. Su una FT-991 misurata davvero, 11,86 V
+                                // per 10,00 A con 94,9 W erogati fanno l'80 per
+                                // cento, e quella corrente tonda sa di fondo
+                                // scala saturato.
                                 Text {
                                     id: rendimento
                                     visible: dm.screenIdx === 4
@@ -887,34 +897,36 @@ Item {
                                         bridge.vdVeri && bridge.idVeri && dm.pwrValid && pdc > 1
                                     readonly property real eta:
                                         cePerTutti ? dm.vFwdVista / pdc * 100 : 0
-                                    // LA GUARDIA. Un finale a stato solido in classe
-                                    // AB sta fra il 40 e il 55 per cento, e il limite
-                                    // teorico della classe B e' 78,5: sopra il 70 il
-                                    // problema non e' un PA straordinario, e' una
-                                    // delle due letture fuori scala.
-                                    //
-                                    // Su una FT-991 misurata davvero: 11,86 V x
-                                    // 10,00 A per 94,9 W erogati fa l'80 per cento,
-                                    // e quella corrente tonda sa di fondo scala
-                                    // saturato. Mostrarlo sarebbe un numero
-                                    // lusinghiero e falso — esattamente cio' che
-                                    // questo strumento non fa da nessuna altra parte.
                                     readonly property bool credibile:
                                         cePerTutti && eta > 5 && eta <= 70
                                     text: credibile ? "η " + eta.toFixed(0) + "%"
                                           : (cePerTutti ? qsTr("η fuori scala") : qsTr("η —"))
-                                    font.pixelSize: credibile ? 15 : 12
+                                    font.pixelSize: credibile ? 14 : 11
                                     font.family: "monospace"
                                     color: {
                                         if (!credibile) return cePerTutti ? dm.colAmber : "#9FB3BC"
                                         return eta < 25 ? dm.colRed : (eta < 40 ? dm.colAmber : dm.colGreen)
                                     }
                                 }
+                                // Compressione e manopola su una riga sola:
+                                // sono due numeri corti e due righe separate
+                                // costavano piu' spazio di quanto valgano.
                                 Text {
-                                    visible: dm.screenIdx === 4 && rendimento.cePerTutti
-                                             && !rendimento.credibile
-                                    text: qsTr("la radio non da' Vd·Id in unita' attendibili")
-                                    width: 116
+                                    visible: dm.screenIdx === 4
+                                    text: (bridge.compVeri ? "C " + bridge.rigComp.toFixed(1) : "C —")
+                                          + "   "
+                                          + (bridge.pwrSetVeri ? "S " + Math.round(bridge.rigPwrSet) + "%" : "S —")
+                                    font.pixelSize: 11; font.family: "monospace"
+                                    color: "#9FB3BC"
+                                }
+                                Text {
+                                    visible: dm.screenIdx === 4
+                                             && ((rendimento.cePerTutti && !rendimento.credibile)
+                                                 || (!bridge.vdVeri && !bridge.idVeri && !bridge.tempVeri))
+                                    text: rendimento.cePerTutti
+                                          ? qsTr("Vd·Id non attendibili")
+                                          : qsTr("nessun sensore sul PA")
+                                    width: 112
                                     wrapMode: Text.WordWrap
                                     font.pixelSize: 8
                                     color: dm.colDim

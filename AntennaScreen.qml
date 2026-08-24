@@ -300,8 +300,17 @@ Item {
             // ------------------------------------------- la carta di Smith
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: width * 0.92
-                Layout.maximumHeight: 330
+                // L'altezza si lega alla colonna, NON alla propria larghezza.
+                // Scritta come "width * 0.92" era circolare — il layout ricava
+                // la larghezza dall'altezza preferita e l'altezza preferita
+                // dalla larghezza — e si risolveva a zero: il riquadro restava
+                // alto niente e la carta non compariva affatto. Sembrava un
+                // errore di disegno e non lo era.
+                // L'altezza si lega alla colonna, non alla propria larghezza.
+                // Scritta come "width * 0.92" il riquadro veniva 423 punti —
+                // misurati — sfondando il massimo di 330 richiesto qui sotto:
+                // un vincolo che si scavalca da se' non e' un vincolo.
+                Layout.preferredHeight: Math.min(330, colonna.width * 0.9)
                 color: schermo.colPanel
                 border.color: schermo.colEdge
                 border.width: 1
@@ -317,6 +326,13 @@ Item {
                         function onStimaChanged() { smith.requestPaint() }
                         function onCampioniChanged() { smith.requestPaint() }
                     }
+                    // E anche quando cambiano le misure: il cerchio del ROS vive
+                    // sulla lettura corrente, e senza questo restava fermo
+                    // proprio nel momento in cui ha qualcosa da mostrare.
+                    Connections {
+                        target: bridge
+                        function onRigCtlChanged() { smith.requestPaint() }
+                    }
 
                     onPaint: {
                         var ctx = getContext("2d")
@@ -331,8 +347,11 @@ Item {
                         var PY = function (gi) { return cy - gi * R }
 
                         // Cerchi a R costante e archi a X costante: la griglia.
+                        // Piu' chiara di quanto fosse: a #1E262C su questo fondo
+                        // era a un passo dall'invisibile, e senza dati sopra
+                        // sembrava che la carta non venisse disegnata affatto.
                         ctx.lineWidth = 1
-                        ctx.strokeStyle = "#1E262C"
+                        ctx.strokeStyle = "#2B353D"
                         var rr = [0.2, 0.5, 1, 2, 5]
                         for (var i = 0; i < rr.length; ++i) {
                             var r = rr[i]
@@ -412,6 +431,24 @@ Item {
                         ctx.fillStyle = "#4A555E"
                         ctx.font = "9px monospace"
                         ctx.fillText("50 Ω", cx + 3, cy - 4)
+
+                        // Una carta vuota deve dire di essere vuota. Il cerchio
+                        // del ROS compare solo mentre si trasmette e gli archi
+                        // solo con una stima: senza ne' l'uno ne' gli altri
+                        // restava una griglia sola, e chi guarda conclude che il
+                        // grafico non funziona invece che non avere dati.
+                        if (ros < 1.0 && !antenna.valido) {
+                            ctx.fillStyle = "#8A939C"
+                            ctx.font = "11px sans-serif"
+                            var msg = antenna.numCampioni > 0
+                                      ? qsTr("servono piu' punti per la stima")
+                                      : qsTr("nessuna misura ancora")
+                            ctx.fillText(msg, cx - ctx.measureText(msg).width / 2, cy + R + 2)
+                            ctx.font = "9px sans-serif"
+                            var m2 = qsTr("il cerchio compare mentre trasmetti")
+                            ctx.fillStyle = "#5B6670"
+                            ctx.fillText(m2, cx - ctx.measureText(m2).width / 2, cy + R + 16)
+                        }
                     }
                 }
             }
