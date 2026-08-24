@@ -26,8 +26,8 @@ set "KEYSTORE=%USERPROFILE%\.android\decodium-upload.jks"
 set "ALIAS=decodium-upload"
 set "IN=C:\decodium-decometer\build\android\android-build\build\outputs\bundle\release\android-build-release.aab"
 set "USCITA=C:\decodium-decometer\dist\playstore"
-set "OUT=%USCITA%\Decometer-1.1.0.aab"
-set "LAVORO=%USCITA%\Decometer-1.1.0.firma-in-corso.aab"
+set "OUT=%USCITA%\Decometer-1.2.0.aab"
+set "LAVORO=%USCITA%\Decometer-1.2.0.firma-in-corso.aab"
 
 if not exist "%KEYSTORE%" (
     echo Chiave non trovata: %KEYSTORE%
@@ -62,6 +62,6 @@ echo Bundle firmato: %OUT%
 for %%F in ("%OUT%") do echo Dimensione: %%~zF byte    Data: %%~tF
 echo.
 echo Da caricare nel Play Console. Il pacchetto e' com.ft2.decometer,
-echo versione 1.1.0 (codice 3): a ogni pacchetto caricato il codice va
+echo versione 1.2.0 (codice 3): a ogni pacchetto caricato il codice va
 echo alzato in CMakeLists.txt, altrimenti il negozio rifiuta il caricamento.
 endlocal

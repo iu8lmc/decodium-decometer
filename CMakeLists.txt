@@ -5,7 +5,7 @@ project(Decometer VERSION 1.1 LANGUAGES CXX)
 # le proprieta' Android, il bundle iOS, la riga dei contatti nel QML — e infatti
 # si e' disallineata: sul telefono si leggeva "Decometer 1.0" mentre il
 # pacchetto era gia' 1.1.0.
-set(DECOMETER_VERSION "1.1.0")
+set(DECOMETER_VERSION "1.2.0")
 
 # Decometer standalone (Android + iOS): SOLO il frontalino RF di Decodium 4 e
 # il client di rete che lo alimenta. Nessun decoder, nessun FFTW/Boost/Opus,
