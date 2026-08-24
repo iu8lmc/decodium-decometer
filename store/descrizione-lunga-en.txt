@@ -1,5 +1,5 @@
-Decometer brings the RF meter of Decodium 4 to your phone: forward power, SWR
-and ALC of your radio, read from the PC over your home network.
+Decometer brings the RF meter of Decodium 4 to your phone: forward power, SWR,
+ALC and power-amplifier telemetry, read from the PC over your home network.
 
 It matters when Decodium holds the radio. No other program can open the same
 serial port, and whoever operates from the next room — or from the other side
@@ -18,11 +18,28 @@ the transmitter at rest, the transmit meters read nothing instead of zero: a
 zero would say "no power, perfect SWR", which looks like a station working
 beautifully.
 
-FOUR SCREENS ON THE SAME FACE
+FIVE PAGES ON THE SAME FACE
 Power (forward, reflected, SWR), matching (return loss, mismatch loss, net
-power), drive (ALC, PEP, average) and signal (dBm, S-meter, frequency and
-band). HOLD freezes what you see — useful on a phone, where you look at the
-meter after releasing the PTT.
+power), drive (ALC, PEP, average), signal (dBm, S-meter, frequency and band),
+and the power amplifier: drain voltage, drain current, temperature, speech
+compression and the position of the power knob, for the rigs that report them.
+HOLD freezes what you see — useful on a phone, where you look at the meter
+after releasing the PTT.
+
+THE ANTENNA ANALYSER
+It collects frequency-and-SWR pairs while you operate and builds the curve of
+your antenna, band by band: resonant frequency, bandwidth, and above all the
+reactance with its sign — which tells you whether the antenna wants shortening
+or lengthening.
+
+For resistance it reports two values instead of one, and that is not
+indecision: from SWR alone the two possibilities produce identical curves, and
+picking one would be inventing. The Smith chart draws the circle of what was
+measured and the arcs of what is compatible with it.
+
+There is also a sweep that commands the radio and transmits, to measure faster.
+It starts only if you start it, stops whenever you want, and puts the radio
+back where it was.
 
 DECODES
 The UDP traffic Decodium already emits, sorted by mode: FT8, FT4, FT2 and the
@@ -39,22 +56,25 @@ transmit. It is the bench wattmeter's beep, translated for something that sits
 in your pocket: an alarm you can only see is no alarm when you are in another
 room.
 
-WHAT IT DOES NOT DO
-It does not decode, does not transmit, does not touch the serial port, does not
-ask for the microphone. It is read-only. The only permission it needs is local
-network access.
-
 HOW IT CONNECTS
-On the PC, in Decodium 4, enable the shared CAT server. In the app, enter the
-PC address and port — from then on it reconnects on its own at every start, and
-picks the link back up by itself if the WiFi drops. A meter that stays dark
-after a network hiccup is not a meter.
+On the PC, in Decodium 4, turn on the DecoPort gateway and choose a password.
+The computer announces itself on the network: in the app the radio appears in a
+list, you tap it, type the same password, and from then on it reconnects on its
+own at every start. There is no IP address to remember.
 
-Requires the same WiFi network as the PC. Nothing goes through the internet and
-nothing needs to be exposed outside.
+The link is authenticated and there is no cleartext mode: without the password
+it does not connect at all, which on a port that exposes a radio is not a
+detail. Nothing goes through the internet and nothing needs to be exposed
+outside.
+
+WHAT IT DOES NOT DO
+It does not decode, does not record audio, does not touch the serial port, does
+not ask for the microphone. The only permission it needs is local network
+access. The only thing that commands the radio is the analyser's sweep, and
+that runs only when you ask for it.
 
 REQUIREMENTS
-Decodium 4 version 1.0.565 or later, running on the PC.
-It also works against any Hamlib rigctld: it is the same protocol.
+Decodium 4 with the DecoPort gateway, running on the PC, and the phone on the
+same WiFi network.
 
 Author: Martino, IU8LMC — iu8lmc@gmail.com

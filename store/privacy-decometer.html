@@ -23,12 +23,12 @@
 <body>
 
 <h1>Decometer — Informativa sulla privacy</h1>
-<p class="data">In vigore dal 19 agosto 2026 · applicazione Android <code>com.ft2.decometer</code></p>
+<p class="data">In vigore dal 24 agosto 2026 · applicazione Android e iOS <code>com.ft2.decometer</code></p>
 
 <p>Decometer è il misuratore remoto di una stazione radioamatoriale: mostra sul
-telefono la potenza, il ROS e l'ALC di una radio gestita dal programma
-Decodium&nbsp;4 su un computer nella stessa rete locale. Questa informativa
-spiega quali dati tratta, dove finiscono e cosa puoi decidere tu.</p>
+telefono la potenza, il ROS, l'ALC e gli altri strumenti di una radio gestita dal
+programma Decodium&nbsp;4 su un computer nella stessa rete locale. Questa
+informativa spiega quali dati tratta, dove finiscono e cosa puoi decidere tu.</p>
 
 <p><strong>In breve: nessun dato personale viene raccolto, né trasmesso a noi o
 a terzi.</strong> L'applicazione non ha server propri, non usa servizi di
@@ -36,26 +36,49 @@ statistica, non contiene pubblicità e non incorpora alcun kit di analisi.</p>
 
 <h2>Cosa fa l'applicazione</h2>
 
-<p>Decometer legge tre cose dal computer indicato dall'utente, sulla rete
-locale: le misure della radio, le decodifiche e gli spot del cluster DX che
-quel computer sta ricevendo. Le mostra sullo schermo e nient'altro.</p>
+<p>Decometer legge dal computer indicato dall'utente, sulla rete locale: le
+misure della radio, le decodifiche e gli spot del cluster DX che quel computer
+sta ricevendo. Le mostra sullo schermo.</p>
 
-<p>È un'applicazione di <strong>sola lettura</strong>: non trasmette, non
-comanda la radio, non registra audio, non accede alla rubrica, alla posizione,
-alla fotocamera o ai file del dispositivo.</p>
+<h2>Quando l'applicazione comanda la radio</h2>
+
+<p>Fino alla versione 1.1.0 questa applicazione era di sola lettura. <strong>Non
+lo è più</strong>, e la differenza va detta chiaramente.</p>
+
+<p>L'analizzatore d'antenna include una funzione di <em>sweep</em> che cambia la
+frequenza della radio e ne alza la portante per misurare il ROS a frequenze
+diverse. <strong>Quella funzione trasmette in radiofrequenza.</strong></p>
+
+<p>Parte soltanto quando l'utente la avvia esplicitamente, dalla sua schermata;
+nessun'altra parte dell'applicazione manda comandi alla radio. Si può fermare in
+qualunque momento, rimette la radio sulla frequenza di partenza, e la portante ha
+una scadenza automatica: se il collegamento cade, scende da sé.</p>
+
+<p>L'analizzatore funziona anche <em>senza</em> trasmettere: nella modalità
+normale si limita a osservare le misure che passano mentre è l'operatore a
+trasmettere. Lo sweep è una scelta, non un requisito.</p>
+
+<p>Resta comunque responsabilità dell'operatore, come per qualunque
+trasmissione, rispettare la licenza e le regole della banda su cui opera.</p>
 
 <h2>Cosa viene salvato sul dispositivo</h2>
 
 <table>
   <tr><th>Dato</th><th>Perché</th><th>Dove va</th></tr>
   <tr>
-    <td>Indirizzo IP e porta del computer</td>
+    <td>Indirizzo e porta del computer</td>
     <td>Per ricollegarsi da sé al prossimo avvio</td>
     <td>Resta sul telefono</td>
   </tr>
   <tr>
-    <td>Porta di ascolto delle decodifiche</td>
-    <td>Stessa ragione</td>
+    <td>Password del collegamento DecoPort</td>
+    <td>Il protocollo non ha una modalità in chiaro: senza la password condivisa
+        il collegamento non si stabilisce</td>
+    <td>Resta sul telefono</td>
+  </tr>
+  <tr>
+    <td>Porte delle decodifiche e degli spot</td>
+    <td>Stessa ragione dell'indirizzo</td>
     <td>Resta sul telefono</td>
   </tr>
   <tr>
@@ -63,17 +86,34 @@ alla fotocamera o ai file del dispositivo.</p>
     <td>Per non richiederle ogni volta</td>
     <td>Resta sul telefono</td>
   </tr>
+  <tr>
+    <td>Campioni dell'antenna: coppie di frequenza e ROS, per banda</td>
+    <td>Sono le misure da cui l'analizzatore ricava la curva dell'antenna. Non
+        contengono nominativi, posizioni né corrispondenza: solo un numero di
+        frequenza e un numero di ROS</td>
+    <td>Resta sul telefono</td>
+  </tr>
 </table>
 
-<p>Sono impostazioni scritte dall'utente, conservate nella memoria privata
+<p>Sono dati scritti o misurati dall'utente, conservati nella memoria privata
 dell'applicazione. Il backup automatico di Android è <strong>disattivato
 apposta</strong>, quindi non finiscono neppure sul cloud dell'account Google.
-Disinstallando l'applicazione spariscono.</p>
+Disinstallando l'applicazione spariscono. I campioni dell'antenna si possono
+cancellare in qualunque momento dalla loro schermata, col comando
+<em>Dimentica</em>.</p>
 
 <h2>Traffico di rete</h2>
 
 <p>Decometer comunica <strong>solo con il computer indicato dall'utente, sulla
 rete locale</strong>. Non contatta server dell'autore né di terze parti.</p>
+
+<p>Il collegamento usa il protocollo DecoPort, che è autenticato: i pacchetti
+sono firmati con una chiave derivata dalla password condivisa, così una stazione
+altrui non può fingersi la tua. La password non viaggia mai sulla rete.</p>
+
+<p>Il computer si annuncia da sé in rete locale e l'applicazione ascolta quegli
+annunci per proporti le radio disponibili: è un ascolto passivo sulla propria
+rete, e gli annunci non firmati con la tua chiave vengono ignorati.</p>
 
 <p>Il permesso <code>INTERNET</code> è quello che Android impone per qualunque
 comunicazione di rete, compresa quella verso un computer nella stanza accanto:

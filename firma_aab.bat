@@ -62,6 +62,6 @@ echo Bundle firmato: %OUT%
 for %%F in ("%OUT%") do echo Dimensione: %%~zF byte    Data: %%~tF
 echo.
 echo Da caricare nel Play Console. Il pacchetto e' com.ft2.decometer,
-echo versione 1.1.0 (codice 2): a ogni pacchetto caricato il codice va
+echo versione 1.1.0 (codice 3): a ogni pacchetto caricato il codice va
 echo alzato in CMakeLists.txt, altrimenti il negozio rifiuta il caricamento.
 endlocal
