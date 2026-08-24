@@ -197,6 +197,30 @@ Item {
             verticalLayoutDirection: ListView.TopToBottom
             boundsBehavior: Flickable.StopAtBounds
 
+            // Le nuove righe entrano in cima, e una ListView che riceve righe
+            // SOPRA la parte visibile tiene fermo quello che si sta guardando:
+            // alza contentY dell'altezza di cio' che ha inserito. E' il
+            // comportamento giusto per chi ha scorso indietro a leggere una
+            // riga vecchia — non gli si sposta il testo sotto gli occhi — ma
+            // per chi sta in cima a guardare il flusso e' esattamente il
+            // contrario di quel che serve: le righe si accumulano appena fuori
+            // dallo schermo e la lista sembra ferma. Era il caso qui, dove il
+            // commento prometteva il ritorno in cima e non lo faceva nessuno.
+            //
+            // Lo stato si legge PRIMA dell'inserimento: dopo, atYBeginning e'
+            // gia' falso proprio a causa di quello spostamento, e la
+            // condizione non sarebbe mai vera.
+            property bool eraInCima: true
+            Connections {
+                target: decodeFeed
+                function onRowsAboutToBeInserted() { lista.eraInCima = lista.atYBeginning }
+                function onRowsInserted() { if (lista.eraInCima) lista.positionViewAtBeginning() }
+                // Il filtro rifa' il modello da capo: li' si torna in cima
+                // comunque, perche' la posizione di prima non vuol piu' dire
+                // niente su un elenco diverso.
+                function onModelReset() { lista.positionViewAtBeginning() }
+            }
+
             delegate: Rectangle {
                 required property string ora
                 required property int snr

@@ -299,6 +299,106 @@ Item {
         clip: true
         readonly property real fit: Math.min(width / dm.faceWidth, height / dm.faceHeight)
 
+        // ------------------------------------------------------- il carbonio
+        //
+        // Il frontalino e' disegnato su una tela fissa di 900x420 e scalato per
+        // entrarci dentro: su un telefono, che e' stretto e alto, e ancor piu'
+        // su un iPad, che e' 4:3, restano due bande scoperte sopra e sotto.
+        // Erano nere e basta, e un pannello strumenti che galleggia nel vuoto
+        // sembra una finestra che non ha finito di caricare.
+        //
+        // Il tessuto si disegna qui invece di arrivare da un'immagine: una
+        // texture in carbonio decente pesa qualche centinaio di kB e andrebbe
+        // messa a piu' risoluzioni per non sgranare sul retina dell'iPad.
+        // Disegnata, sono venti righe e nessun byte nel pacchetto.
+        //
+        // Si dipinge UNA piastrella di 64 punti e la si fa ripetere alla scheda
+        // grafica: il Canvas lavora una volta sola, all'avvio.
+        Canvas {
+            id: piastrella
+            // 24 punti, quadranti da 12. La misura non e' estetica: lo schermo
+            // di un iPad ha due pixel per punto e quello di questo PC ne ha
+            // 1,75, quindi una piastrella da 64 punti finisce disegnata larga
+            // piu' di cento pixel e si legge come piastrelle di un pavimento,
+            // non come tessuto. Il carbonio si riconosce dal passo fitto: se lo
+            // vedi grande, non e' carbonio.
+            width: 24; height: 24
+            visible: false
+            onPaint: {
+                var ctx = getContext("2d")
+                var S = 24, Q = S / 2
+                ctx.fillStyle = "#0C0F12"
+                ctx.fillRect(0, 0, S, S)
+                // Armatura a saia 2x2: quattro quadranti, fibra alternata fra
+                // orizzontale e verticale. E' cio' che rende il carbonio
+                // riconoscibile — senza l'alternanza sembra una grata.
+                for (var qy = 0; qy < 2; ++qy) {
+                    for (var qx = 0; qx < 2; ++qx) {
+                        var orizz = ((qx + qy) % 2) === 0
+                        var x0 = qx * Q, y0 = qy * Q
+                        // Filati da un punto, alternati appena: due grigi
+                        // troppo diversi disegnano una grata a righe invece di
+                        // un intreccio.
+                        for (var i = 0; i < Q; ++i) {
+                            ctx.fillStyle = (i % 2 === 0) ? "#141920" : "#0F1419"
+                            if (orizz) ctx.fillRect(x0, y0 + i, Q, 1)
+                            else       ctx.fillRect(x0 + i, y0, 1, Q)
+                        }
+                        // La lucentezza va TRASVERSALE alla fibra, come nella
+                        // resina vera: e' il riflesso che fa leggere il verso
+                        // del filato, e messo per lungo il tessuto si appiattisce.
+                        // Poco nero in fondo, altrimenti ogni quadrante si
+                        // stacca dal vicino e tornano le piastrelle.
+                        var g = orizz ? ctx.createLinearGradient(x0, y0, x0, y0 + Q)
+                                      : ctx.createLinearGradient(x0, y0, x0 + Q, y0)
+                        g.addColorStop(0.0,  "rgba(255,255,255,0.000)")
+                        g.addColorStop(0.30, "rgba(255,255,255,0.045)")
+                        g.addColorStop(1.0,  "rgba(0,0,0,0.10)")
+                        ctx.fillStyle = g
+                        ctx.fillRect(x0, y0, Q, Q)
+                    }
+                }
+                tessuto.source = piastrella.toDataURL()
+            }
+            Component.onCompleted: requestPaint()
+        }
+
+        Image {
+            id: tessuto
+            anchors.fill: parent
+            fillMode: Image.Tile
+            // Qui l'interpolazione serve: i filati sono da un punto e su uno
+            // schermo a due pixel per punto un passo cosi' fitto sfarfalla
+            // quando si scorre. Ammorbidirlo costa un filo di nitidezza e
+            // toglie il tremolio.
+            smooth: true
+            cache: false
+        }
+
+        // Le bande sono il bordo dello strumento, non il centro dell'attenzione:
+        // si scuriscono verso l'esterno, cosi' l'occhio torna al quadrante.
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0;  color: Qt.rgba(0, 0, 0, 0.55) }
+                GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.0) }
+                GradientStop { position: 0.55; color: Qt.rgba(0, 0, 0, 0.0) }
+                GradientStop { position: 1.0;  color: Qt.rgba(0, 0, 0, 0.55) }
+            }
+        }
+
+        // Un alone sotto il pannello: senza, il frontalino sta APPOGGIATO sul
+        // tessuto invece che incassato, e si vede che sono due disegni diversi.
+        Rectangle {
+            anchors.centerIn: parent
+            width: dm.faceWidth * faceHolder.fit + 26
+            height: dm.faceHeight * faceHolder.fit + 26
+            radius: 18
+            color: "transparent"
+            border.color: Qt.rgba(0, 0, 0, 0.45)
+            border.width: 13
+        }
+
         Item {
             id: face
             width: dm.faceWidth
