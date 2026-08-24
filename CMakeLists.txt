@@ -31,6 +31,8 @@ qt_add_executable(decometer
     DecodeFeed.hpp
     SpotFeed.cpp
     SpotFeed.hpp
+    AntennaProbe.cpp
+    AntennaProbe.hpp
     # Il client DecoPort, copiato da C:\decoport e non incluso da li'.
     # Un add_subdirectory con percorso assoluto compilerebbe solo su questa
     # macchina, e un'app che si costruisce anche per Android e iOS deve poter
@@ -48,7 +50,7 @@ target_include_directories(decometer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/decopor
 qt_add_qml_module(decometer
     URI Decometer
     VERSION 1.0
-    QML_FILES Main.qml Decometer.qml DecodeScreen.qml ClusterScreen.qml
+    QML_FILES Main.qml Decometer.qml DecodeScreen.qml ClusterScreen.qml AntennaScreen.qml
 )
 
 target_link_libraries(decometer PRIVATE

@@ -866,6 +866,34 @@ Item {
                                     font.pixelSize: 20; font.bold: true; font.family: "monospace"
                                     color: dm.colCyan
                                 }
+                                // IL RENDIMENTO. Prima non era calcolabile: serviva
+                                // la corrente di drain, che il protocollo non
+                                // portava. Un finale a stato solido in classe AB
+                                // sta fra il 40 e il 55 per cento; vederlo scendere
+                                // mentre la temperatura sale dice che il PA sta
+                                // soffrendo molto prima che intervenga una
+                                // protezione.
+                                //
+                                // Si mostra solo con TUTTI E TRE i dati presenti e
+                                // una potenza continua sensata: un rapporto con un
+                                // denominatore quasi nullo produce numeri enormi
+                                // che sembrano una scoperta e sono una divisione
+                                // per zero.
+                                Text {
+                                    visible: dm.screenIdx === 4
+                                    readonly property real pdc: bridge.rigVd * bridge.rigId
+                                    readonly property bool calcolabile:
+                                        bridge.vdVeri && bridge.idVeri && dm.pwrValid && pdc > 1
+                                    text: calcolabile
+                                          ? "η " + Math.min(100, dm.vFwdVista / pdc * 100).toFixed(0) + "%"
+                                          : qsTr("η —")
+                                    font.pixelSize: 15; font.family: "monospace"
+                                    color: {
+                                        if (!calcolabile) return "#9FB3BC"
+                                        var e = dm.vFwdVista / pdc * 100
+                                        return e < 25 ? dm.colRed : (e < 40 ? dm.colAmber : dm.colGreen)
+                                    }
+                                }
                                 Text {
                                     visible: dm.screenIdx === 4
                                     text: bridge.compVeri

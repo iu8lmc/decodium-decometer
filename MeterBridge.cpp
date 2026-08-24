@@ -306,6 +306,32 @@ void MeterBridge::programmaRitentativo()
     m_ritardoRitentativo = qMin(kRitardoMax, m_ritardoRitentativo * 2);
 }
 
+bool MeterBridge::puoTrasmettere() const
+{
+    if (!m_link || !m_catConnected) return false;
+    return (m_link->state().stateFlags & decoport::StateCanTransmit) != 0;
+}
+
+void MeterBridge::sintonizza(double hz)
+{
+    // Nessun comando parte se l'altro capo non ha detto di poterlo eseguire:
+    // meglio non fare niente che mandare una frequenza a una stazione che sta
+    // gia' trasmettendo per conto suo.
+    if (!m_link || !puoTrasmettere() || hz <= 0.0) return;
+    m_link->tune(hz);
+}
+
+void MeterBridge::premiPtt(bool giu)
+{
+    if (!m_link) return;
+    // Il "giu' " non si condiziona a puoTrasmettere: se la radio smette di
+    // dichiararsi disponibile MENTRE la portante e' alzata, l'ordine di
+    // abbassarla deve partire lo stesso. Una guardia che impedisce di spegnere
+    // e' peggio di nessuna guardia.
+    if (giu && !puoTrasmettere()) return;
+    m_link->key(giu);
+}
+
 void MeterBridge::catDisconnect()
 {
     // Stacco voluto: si azzera prima l'intenzione, altrimenti il ritentativo

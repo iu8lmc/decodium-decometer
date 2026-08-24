@@ -444,6 +444,17 @@ ApplicationWindow {
                     onClicked: win.showSettings = false
                 }
 
+                // L'analizzatore d'antenna. Sta qui e non fra i tasti del
+                // quadrante di proposito: non e' uno strumento da guardare
+                // mentre si trasmette — e' una cosa che si va ad aprire, e una
+                // di quelle che puo' mettere la radio in aria.
+                Tasto {
+                    Layout.fillWidth: true
+                    visible: bridge.lastHost.length > 0
+                    text: qsTr("Analizzatore d'antenna")
+                    onClicked: { win.schermo = 3; win.showSettings = false }
+                }
+
                 Label {
                     Layout.fillWidth: true
                     Layout.topMargin: 8
@@ -533,6 +544,9 @@ ApplicationWindow {
 
             // --- cluster --------------------------------------------------
             ClusterScreen { onTornaAlleMisure: win.schermo = 0 }
+
+            // --- antenna --------------------------------------------------
+            AntennaScreen { onTornaAlleMisure: win.schermo = 0 }
         }
 
     }

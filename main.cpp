@@ -3,6 +3,7 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 
+#include "AntennaProbe.hpp"
 #include "DecodeFeed.hpp"
 #include "MeterBridge.hpp"
 #include "SpotFeed.hpp"
@@ -50,11 +51,15 @@ int main(int argc, char* argv[])
     MeterBridge bridge;
     DecodeFeed decodeFeed;
     SpotFeed spotFeed;
+    // L'analizzatore vive sopra il ponte: le misure le guarda passare, e i due
+    // soli comandi che escono da quest'app li chiede a lui.
+    AntennaProbe antenna(&bridge);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("bridge"), &bridge);
     engine.rootContext()->setContextProperty(QStringLiteral("decodeFeed"), &decodeFeed);
     engine.rootContext()->setContextProperty(QStringLiteral("spotFeed"), &spotFeed);
+    engine.rootContext()->setContextProperty(QStringLiteral("antenna"), &antenna);
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &app, []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);

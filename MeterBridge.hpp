@@ -105,6 +105,12 @@ class MeterBridge : public QObject
     Q_PROPERTY(double safeLeft READ safeLeft NOTIFY safeAreaChanged)
     Q_PROPERTY(double safeRight READ safeRight NOTIFY safeAreaChanged)
 
+    // Vero quando il gateway dichiara che questa stazione puo' davvero essere
+    // messa in trasmissione da qui. Lo decide Decodium, non l'app: serve il CAT
+    // per alzare il PTT e una radio che non stia gia' trasmettendo per conto
+    // suo. Senza, lo sweep non parte nemmeno.
+    Q_PROPERTY(bool puoTrasmettere READ puoTrasmettere NOTIFY rigCtlChanged)
+
     Q_PROPERTY(QString lastHost READ lastHost NOTIFY lastEndpointChanged)
     Q_PROPERTY(int lastPort READ lastPort NOTIFY lastEndpointChanged)
 
@@ -164,6 +170,8 @@ public:
     double safeLeft() const { return m_safeLeft; }
     double safeRight() const { return m_safeRight; }
 
+    bool puoTrasmettere() const;
+
     QString lastHost() const { return m_lastHost; }
     int lastPort() const { return m_lastPort; }
 
@@ -175,6 +183,14 @@ public slots:
     // Voluto invocabile dal QML: Impostazioni -> IP:porta -> Connetti.
     void catConnect(const QString& host, int port);
     void catDisconnect();
+
+    // GLI UNICI DUE COMANDI CHE ESCONO DA QUEST'APP. Fino alla 1.1.0 non ce
+    // n'era nessuno e la scheda del negozio diceva "di sola lettura": ora
+    // servono all'analizzatore d'antenna, che per misurare deve per forza
+    // trasmettere. Restano confinati li' — nessun'altra parte dell'interfaccia
+    // li chiama — e valgono solo se il gateway dichiara puoTrasmettere.
+    Q_INVOKABLE void sintonizza(double hz);
+    Q_INVOKABLE void premiPtt(bool giu);
 
 signals:
     void keepScreenOnChanged();
