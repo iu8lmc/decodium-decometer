@@ -124,6 +124,42 @@ ApplicationWindow {
         }
     }
 
+    // Stessa storia dei tasti, con i campi rimasti indietro. Di un TextField
+    // del tema predefinito qui si sceglieva solo il colore del testo: fondo,
+    // riga di base, cursore e testo del suggerimento restavano quelli di un
+    // tema pensato per lo sfondo chiaro, e su questo nero il fondo sparisce
+    // mentre il suggerimento diventa grigio su grigio. Il campo c'e', si puo'
+    // anche scrivere, ma non si vede dove — che su una schermata di rete, dove
+    // l'unica cosa da fare e' scrivere un indirizzo, la rende inservibile.
+    //
+    // Disegnandoli qui non dipendono piu' da quale stile monta il sistema:
+    // sullo stesso APK Android sceglie un tema e il PC un altro, e un campo
+    // che si vede solo su una delle due non e' un campo che funziona.
+    component Campo: TextField {
+        id: cp
+        implicitHeight: 44
+        leftPadding: 10
+        rightPadding: 10
+        color: colInk
+        font.pixelSize: 18
+        placeholderTextColor: colMuted
+        selectionColor: colCyan
+        selectedTextColor: "#0B0E12"
+        // Anche il cursore arriva dal tema, e nero su nero non si trova piu'.
+        // Il lampeggio resta quello di sistema: cursorVisible lo governa gia'.
+        cursorDelegate: Rectangle {
+            width: 2
+            color: colCyan
+            visible: cp.activeFocus && cp.cursorVisible
+        }
+        background: Rectangle {
+            radius: 5
+            color: colPanel
+            border.color: cp.activeFocus ? colCyan : colEdge
+            border.width: 1
+        }
+    }
+
     // true finche' non si e' mai tentato un collegamento: mostra la schermata
     // di rete invece delle misure. Una volta collegati, un calo della linea lo
     // dice gia' da se' ogni schermata.
@@ -178,28 +214,73 @@ ApplicationWindow {
 
                 // -------------------------------------------------- misure RF
                 Rectangle { Layout.preferredHeight: 1; color: colEdge; Layout.fillWidth: true; Layout.topMargin: 6 }
-                Label { text: qsTr("MISURE — server CAT condiviso"); color: colCyan; font.pixelSize: 12; font.bold: true }
+                Label { text: qsTr("MISURE — gateway DecoPort"); color: colCyan; font.pixelSize: 12; font.bold: true }
 
-                Label { text: qsTr("Indirizzo IP del PC"); color: colLabel; font.pixelSize: 13 }
-                TextField {
+                // Le radio che si sono annunciate da sole. Prima qui c'era solo
+                // un campo per l'indirizzo IP, che sul telefono si digita a
+                // memoria e si sbaglia: il gateway DecoPort si annuncia in rete
+                // locale, quindi l'indirizzo giusto si puo' offrire invece di
+                // chiederlo. Senza chiave l'elenco resta vuoto, ed e' giusto:
+                // un annuncio non firmato puo' venire da chiunque.
+                Label {
+                    Layout.fillWidth: true
+                    visible: bridge.radiosTrovate.length > 0
+                    text: qsTr("Radio trovate in rete — toccane una")
+                    color: colLabel
+                    font.pixelSize: 13
+                }
+                Repeater {
+                    model: bridge.radiosTrovate
+                    delegate: Tasto {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        text: (modelData.rigLabel && modelData.rigLabel.length
+                               ? modelData.rigLabel : qsTr("radio"))
+                              + "  ·  " + modelData.host
+                              + (modelData.catOnline ? "" : qsTr("  (CAT giu')"))
+                        onClicked: {
+                            hostField.text = modelData.host
+                            portField.text = String(modelData.port)
+                        }
+                    }
+                }
+
+                Label { text: qsTr("Indirizzo del PC"); color: colLabel; font.pixelSize: 13 }
+                Campo {
                     id: hostField
                     Layout.fillWidth: true
                     placeholderText: qsTr("es. 192.168.1.50")
                     text: bridge.lastHost
-                    color: colInk
-                    font.pixelSize: 18
                     inputMethodHints: Qt.ImhPreferLatin
                 }
 
-                Label { text: qsTr("Porta (CAT condivisa di Decodium 4)"); color: colLabel; font.pixelSize: 13 }
-                TextField {
+                Label { text: qsTr("Porta (DecoPort di Decodium 4)"); color: colLabel; font.pixelSize: 13 }
+                Campo {
                     id: portField
                     Layout.fillWidth: true
-                    text: bridge.lastPort > 0 ? String(bridge.lastPort) : "4533"
-                    color: colInk
-                    font.pixelSize: 18
+                    text: bridge.lastPort > 0 ? String(bridge.lastPort) : "5559"
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: IntValidator { bottom: 1; top: 65535 }
+                }
+
+                // DecoPort non ha una modalita' in chiaro: senza chiave il
+                // gateway non si accende e il client non si collega. Non e' una
+                // scomodita' da aggirare — la porta espone una radio, e una
+                // radio che chiunque sulla WiFi puo' interrogare e' una radio
+                // che chiunque puo' ascoltare.
+                //
+                // La chiave si vede mentre la si scrive, di proposito: e' un
+                // segreto condiviso da digitare su una tastiera del telefono,
+                // e nasconderlo qui produrrebbe piu' errori di battitura che
+                // sicurezza, davanti a una radio in casa propria.
+                Label { text: qsTr("Chiave (la stessa di Decodium)"); color: colLabel; font.pixelSize: 13 }
+                Campo {
+                    id: keyField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("senza questa non si collega")
+                    text: bridge.authKey
+                    inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+                    onEditingFinished: bridge.authKey = text
                 }
 
                 Label {
@@ -222,24 +303,20 @@ ApplicationWindow {
                 }
 
                 Label { text: qsTr("Porta in ascolto"); color: colLabel; font.pixelSize: 13 }
-                TextField {
+                Campo {
                     id: udpPortField
                     Layout.fillWidth: true
                     text: String(decodeFeed.port)
-                    color: colInk
-                    font.pixelSize: 18
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: IntValidator { bottom: 1; top: 65535 }
                 }
 
                 Label { text: qsTr("Gruppo multicast (solo se il PC manda in multicast)"); color: colLabel; font.pixelSize: 13 }
-                TextField {
+                Campo {
                     id: udpGroupField
                     Layout.fillWidth: true
                     placeholderText: qsTr("vuoto = normale")
                     text: decodeFeed.group
-                    color: colInk
-                    font.pixelSize: 18
                     inputMethodHints: Qt.ImhPreferLatin
                 }
 
@@ -263,12 +340,10 @@ ApplicationWindow {
                 }
 
                 Label { text: qsTr("Porta degli spot"); color: colLabel; font.pixelSize: 13 }
-                TextField {
+                Campo {
                     id: spotPortField
                     Layout.fillWidth: true
                     text: spotFeed.port > 0 ? String(spotFeed.port) : "4534"
-                    color: colInk
-                    font.pixelSize: 18
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: IntValidator { bottom: 1; top: 65535 }
                 }
@@ -348,9 +423,14 @@ ApplicationWindow {
                     Layout.topMargin: 10
                     text: qsTr("Collega tutto")
                     enabled: hostField.text.trim().length > 0
+                             && keyField.text.trim().length > 0
                     onClicked: {
                         var ip = hostField.text.trim()
-                        bridge.catConnect(ip, parseInt(portField.text, 10) || 4533)
+                        // La chiave prima del collegamento: se l'utente l'ha
+                        // appena scritta e preme senza uscire dal campo,
+                        // editingFinished non e' ancora arrivato.
+                        bridge.authKey = keyField.text
+                        bridge.catConnect(ip, parseInt(portField.text, 10) || 5559)
                         decodeFeed.listen(parseInt(udpPortField.text, 10) || 2237,
                                           udpGroupField.text.trim())
                         spotFeed.connectTo(ip, parseInt(spotPortField.text, 10) || 4534)

@@ -1,6 +1,8 @@
 #include "MeterBridge.hpp"
 
-#include <QTcpSocket>
+#include "DecoPortLink.h"
+
+#include <QVariantList>
 
 #if defined(Q_OS_ANDROID)
 #include <QJniObject>
@@ -19,53 +21,42 @@ MeterBridge::MeterBridge(QObject* parent)
     , m_settings(QStringLiteral("Decodium"), QStringLiteral("Decometer"))
 {
     m_lastHost = m_settings.value(QStringLiteral("catHost")).toString();
-    m_lastPort = m_settings.value(QStringLiteral("catPort"), 4533).toInt();
+    m_lastPort = m_settings.value(QStringLiteral("catPort"), 5559).toInt();
+    m_authKey = m_settings.value(QStringLiteral("authKey")).toString();
     m_rigMetersOn = m_settings.value(QStringLiteral("rigMetersOn"), true).toBool();
     m_keepScreenOn = m_settings.value(QStringLiteral("keepScreenOn"), true).toBool();
     m_catStatus = tr("CAT non connesso");
 
-    // Un solo ciclo, e veloce. Il PTT e i tre livelli si chiedono INSIEME, in
-    // una sola scrittura: cosi' fra il momento in cui parte la portante e il
-    // momento in cui l'ago si muove passa il tempo di un giro, non la somma
-    // di due attese. La prima versione interrogava il PTT una volta al
-    // secondo e solo DOPO averlo visto alto cominciava a chiedere i livelli:
-    // fino a 1,35 s di ritardo, che su uno strumento da guardare MENTRE si
-    // trasmette lo rende inutile.
-    //
-    // Interrogare spesso non costa: il server legge dalla propria memoria e
-    // risponde in circa 3 ms senza toccare la seriale della radio.
-    //
-    // 80 ms: piu' fitto della cadenza con cui il dato cambia davvero, ed e'
-    // voluto. Decodium legge la radio ogni 250 ms in trasmissione (dalla
-    // 1.0.566), e chi interroga a passo uguale prende in media mezzo periodo
-    // di ritardo solo per essersi trovato fuori fase. Chiedere piu' spesso di
-    // quanto il dato cambi costa qualche byte in rete e toglie quel ritardo:
-    // il valore nuovo viene raccolto entro 80 ms da quando esiste.
-    m_poll.setInterval(80);
-    connect(&m_poll, &QTimer::timeout, this, &MeterBridge::onPoll);
+    // Il collegamento e la scoperta. Due oggetti della libreria, e nessun
+    // ciclo di interrogazione qui dentro: con DecoPort e' il gateway a mandare
+    // il contesto quando cambia, invece di essere il telefono a chiedere dodici
+    // volte al secondo. Sul telefono la differenza si sente sulla batteria,
+    // sulla radio si sente sul bus seriale.
+    m_link = new DecoPortLink(this);
+    connect(m_link, &DecoPortLink::stateChanged, this, &MeterBridge::onLinkState);
+    connect(m_link, &DecoPortLink::linkedChanged, this, &MeterBridge::onLinkLinked);
+
+    // La scoperta parte sempre, anche prima di essere collegati: e' cosi' che
+    // la schermata di rete puo' proporre le radio invece di chiedere un
+    // indirizzo IP a memoria. Senza chiave non mostra niente, e va bene cosi'.
+    m_scoperta = new DecoPortDiscovery(this);
+    connect(m_scoperta, &DecoPortDiscovery::radiosChanged,
+            this, &MeterBridge::radiosTrovateChanged);
+    if (!m_authKey.isEmpty()) {
+        QByteArray const grezza = m_authKey.toUtf8();
+        m_link->setAuthKey(grezza);
+        m_scoperta->setAuthKey(grezza);
+    }
+    m_scoperta->start();
 
     // La linea cade: il WiFi vacilla, il telefono passa a un altro access
-    // point, il PC va in sospensione. Prima da li' non si tornava piu' da
-    // soli — il quadrante restava spento e bisognava rientrare nelle
-    // impostazioni e ripremere Connetti, mentre la radio magari trasmetteva.
-    // Adesso ci riprova da se' finche' l'utente non chiede di staccare.
+    // point, il PC va in sospensione. Ci si riprova da se' finche' l'utente non
+    // chiede di staccare.
     m_ritenta.setSingleShot(true);
     connect(&m_ritenta, &QTimer::timeout, this, [this] {
         if (!m_vuoleConnesso) return;
         chiudiSocket();
         avviaConnessione();
-    });
-
-    // Il tentativo che non finisce mai: senza questa il ritentativo non
-    // partirebbe mai, perche' un tentativo formalmente ancora in corso non
-    // e' un errore.
-    m_attesaConn.setSingleShot(true);
-    m_attesaConn.setInterval(kTimeoutConn);
-    connect(&m_attesaConn, &QTimer::timeout, this, [this] {
-        if (!m_cat || m_cat->state() == QAbstractSocket::ConnectedState) return;
-        m_catStatus = tr("CAT: nessuna risposta da %1:%2").arg(m_lastHost).arg(m_lastPort);
-        emit catChanged();
-        programmaRitentativo();
     });
 
     applyKeepScreenOn();
@@ -75,7 +66,7 @@ MeterBridge::MeterBridge(QObject* parent)
     // e' un misuratore, si guarda mentre si trasmette. Il tentativo parte
     // appena il ciclo degli eventi gira, cosi' il QML e' gia' in piedi e vede
     // cambiare lo stato invece di perderselo.
-    if (!m_lastHost.isEmpty()) {
+    if (!m_lastHost.isEmpty() && !m_authKey.isEmpty()) {
         QTimer::singleShot(0, this, [this] { catConnect(m_lastHost, m_lastPort); });
     }
 }
@@ -230,11 +221,43 @@ void MeterBridge::setRigMetersOn(bool on)
     emit rigCtlChanged();
 }
 
+// ── DecoPort ────────────────────────────────────────────────────────────────
+// Il trasporto sta tutto nella libreria: qui dentro resta soltanto la
+// traduzione fra il contesto che arriva e i campi che il quadrante si aspetta,
+// piu' la volonta' dell'utente di restare collegato.
+
+void MeterBridge::setAuthKey(const QString& k)
+{
+    QString const pulita = k.trimmed();
+    if (pulita == m_authKey) return;
+    m_authKey = pulita;
+    m_settings.setValue(QStringLiteral("authKey"), m_authKey);
+    QByteArray const grezza = m_authKey.toUtf8();
+    if (m_link) m_link->setAuthKey(grezza);
+    // Anche la scoperta: un annuncio non firmato puo' venire da chiunque, e una
+    // radio falsa nell'elenco e' un invito a collegarsi alla macchina sbagliata.
+    if (m_scoperta) m_scoperta->setAuthKey(grezza);
+    emit lastEndpointChanged();
+}
+
+QVariantList MeterBridge::radiosTrovate() const
+{
+    return m_scoperta ? m_scoperta->radios() : QVariantList();
+}
+
 void MeterBridge::catConnect(const QString& host, int port)
 {
     catDisconnect();
     if (host.isEmpty() || port <= 0 || port > 65535) {
         m_catStatus = tr("Indirizzo non valido");
+        emit catChanged();
+        return;
+    }
+    // DecoPort non ha una modalita' in chiaro, ed e' bene che non l'abbia: la
+    // porta espone una radio. Dirlo qui evita il tentativo muto, che finirebbe
+    // in "nessuna risposta" senza spiegare che il problema e' la chiave.
+    if (m_authKey.isEmpty()) {
+        m_catStatus = tr("Manca la chiave: DecoPort non si collega senza");
         emit catChanged();
         return;
     }
@@ -245,156 +268,152 @@ void MeterBridge::catConnect(const QString& host, int port)
     m_settings.setValue(QStringLiteral("catPort"), port);
     emit lastEndpointChanged();
 
-    // Da qui in avanti il collegamento e' voluto: se cade, si riprende da se'.
     m_vuoleConnesso = true;
     m_ritardoRitentativo = kRitardoMin;
     avviaConnessione();
 }
 
-// Il tentativo vero e proprio, senza toccare ne' l'intenzione dell'utente ne'
-// le impostazioni salvate: e' quello che rifa' il ritentativo a ogni giro.
 void MeterBridge::avviaConnessione()
 {
-    m_cat = new QTcpSocket(this);
-    // Niente attesa di Nagle: i comandi sono corti e vanno spediti adesso, non
-    // quando il buffer si riempie. Su un misuratore quei millisecondi si
-    // vedono.
-    m_cat->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-    connect(m_cat, &QTcpSocket::readyRead, this, &MeterBridge::onCatReadyRead);
-    connect(m_cat, &QTcpSocket::connected, this, [this] {
-        m_attesaConn.stop();
-        m_ritenta.stop();
-        m_ritardoRitentativo = kRitardoMin;   // la prossima caduta riparte svelta
-        m_catConnected = true;
-        m_catStatus = tr("CAT connesso a %1:%2").arg(m_lastHost).arg(m_lastPort);
-        emit catChanged();
-        m_pollInVolo = false;
-        m_ultimaRisposta.start();
-        m_poll.start();
-        onPoll();             // subito, senza aspettare il primo giro del timer
-    });
-    connect(m_cat, &QTcpSocket::disconnected, this, [this] {
-        m_poll.stop();
-        m_attesaConn.stop();
-        if (m_catConnected) {
-            m_catConnected = false;
-            m_catStatus = tr("CAT disconnesso");
-            resetTxMeters();
-            emit catChanged();
-        }
-        programmaRitentativo();
-    });
-    connect(m_cat, &QAbstractSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
-        m_poll.stop();
-        m_attesaConn.stop();
-        m_catConnected = false;
-        m_catStatus = tr("CAT errore: %1").arg(m_cat ? m_cat->errorString() : QString());
-        resetTxMeters();
-        emit catChanged();
-        programmaRitentativo();
-    });
-
+    if (!m_link) return;
+    m_link->setAuthKey(m_authKey.toUtf8());
     m_catStatus = m_ritardoRitentativo > kRitardoMin
-                      ? tr("CAT: riconnessione a %1:%2…").arg(m_lastHost).arg(m_lastPort)
-                      : tr("CAT: connessione a %1:%2…").arg(m_lastHost).arg(m_lastPort);
+                      ? tr("CAT: riconnessione a %1:%2...").arg(m_lastHost).arg(m_lastPort)
+                      : tr("CAT: connessione a %1:%2...").arg(m_lastHost).arg(m_lastPort);
     emit catChanged();
-    m_attesaConn.start();
-    m_cat->connectToHost(m_lastHost, quint16(m_lastPort));
+
+    if (!m_link->connectTo(m_lastHost, m_lastPort)) {
+        m_catStatus = tr("CAT: impossibile aprire la porta locale");
+        emit catChanged();
+        programmaRitentativo();
+    }
 }
 
-// Chiude il socket senza rinunciare a riprovare: la usano il ritentativo e
-// lo stacco voluto, che pero' prima azzera l'intenzione.
 void MeterBridge::chiudiSocket()
 {
-    m_poll.stop();
-    m_attesaConn.stop();
-    m_pollInVolo = false;
-    m_ultimaRisposta.invalidate();
-    if (m_cat) {
-        // Prima si staccano i segnali, poi si abortisce: altrimenti abort()
-        // fa scattare disconnected/errorOccurred e il gestore programmerebbe
-        // un ritentativo per una chiusura che abbiamo deciso noi.
-        m_cat->disconnect(this);
-        m_cat->abort();
-        m_cat->deleteLater();
-        m_cat = nullptr;
-    }
-    m_catBuf.clear();
-    m_livelloAtteso.clear();
+    if (m_link) m_link->disconnectFromGateway();
 }
 
 void MeterBridge::programmaRitentativo()
 {
-    if (!m_vuoleConnesso || m_lastHost.isEmpty()) return;
-    // Una caduta sola annuncia se stessa due volte — errorOccurred e poi
-    // disconnected — e senza questa guardia il ritardo raddoppierebbe due
-    // volte per un solo inciampo.
-    if (m_ritenta.isActive()) return;
+    if (!m_vuoleConnesso) return;
     m_ritenta.start(m_ritardoRitentativo);
-    m_ritardoRitentativo = qMin(m_ritardoRitentativo * 2, kRitardoMax);
+    m_ritardoRitentativo = qMin(kRitardoMax, m_ritardoRitentativo * 2);
 }
 
 void MeterBridge::catDisconnect()
 {
-    // Stacco VOLUTO: si smette anche di riprovare.
-    bool const stavaProvando = m_vuoleConnesso;
+    // Stacco voluto: si azzera prima l'intenzione, altrimenti il ritentativo
+    // gia' programmato rimetterebbe su la linea appena chiusa.
     m_vuoleConnesso = false;
     m_ritenta.stop();
-    m_ritardoRitentativo = kRitardoMin;
     chiudiSocket();
-    // Anche senza essere mai arrivati a connettersi la riga di stato puo'
-    // essere ferma su "riconnessione…": lasciarla li' direbbe che si sta
-    // ancora provando, che e' esattamente cio' che non succede piu'.
-    if (m_catConnected || stavaProvando) {
+
+    if (m_catConnected) {
         m_catConnected = false;
-        m_catStatus = tr("CAT non connesso");
         resetTxMeters();
-        emit catChanged();
     }
+    m_catStatus = tr("CAT non connesso");
+    emit catChanged();
 }
 
-void MeterBridge::onPoll()
+// Il collegamento e' salito o caduto. La caduta la dichiara la libreria anche
+// quando il socket resta aperto e muto — il gateway smette di mandare contesto
+// e dopo qualche secondo il collegamento si considera perso — che e'
+// esattamente la caduta tipica del telefono che cambia access point.
+void MeterBridge::onLinkLinked()
 {
-    if (!m_cat || m_cat->state() != QAbstractSocket::ConnectedState)
-        return;
+    bool const su = m_link && m_link->isLinked();
+    if (su == m_catConnected) return;
+    m_catConnected = su;
 
-    // Il giro precedente non ha risposto: non se ne manda un altro sopra.
-    // Senza questa guardia, su una rete che rallenta le domande si
-    // accumulerebbero a dodici al secondo e le risposte arriverebbero con un
-    // ritardo che cresce da solo: l'ago indicherebbe il passato, e con l'aria
-    // di funzionare benissimo.
-    if (m_pollInVolo) {
-        // Muto da troppo tempo pur avendo chiesto: il socket e' vivo solo per
-        // il sistema operativo. Si taglia e si ricomincia, che e' l'unica cosa
-        // che rimette in moto il quadrante.
-        if (m_ultimaRisposta.isValid() && m_ultimaRisposta.elapsed() > kSilenzioMax) {
-            m_catStatus = tr("CAT muto: riconnessione…");
-            m_catConnected = false;
-            resetTxMeters();
-            emit catChanged();
-            chiudiSocket();
-            programmaRitentativo();
-        }
-        return;
+    if (su) {
+        m_ritenta.stop();
+        m_ritardoRitentativo = kRitardoMin;   // la prossima caduta riparte svelta
+        m_catStatus = m_rigModel.isEmpty()
+                          ? tr("CAT connesso a %1").arg(m_link->peerAddress())
+                          : tr("CAT connesso a %1 (%2)").arg(m_link->peerAddress(), m_rigModel);
+    } else {
+        resetTxMeters();
+        m_strengthVeri = false;
+        m_catStatus = tr("CAT disconnesso");
+        programmaRitentativo();
+    }
+    emit catChanged();
+}
+
+// Un contesto e' arrivato. Tutto quello che segue e' traduzione, con una regola
+// sola: se il campo non c'e', la sua bandiera va giu'. Il gateway manda un
+// contesto completo ogni volta, quindi un campo che sparisce vuol dire che la
+// radio ha smesso di darlo, non che il pacchetto era corto.
+void MeterBridge::onLinkState()
+{
+    if (!m_link) return;
+
+    bool cambiato = false;
+
+    if (m_rigModel != m_link->rigLabel()) {
+        m_rigModel = m_link->rigLabel();
+        emit catChanged();
     }
 
-    // Una sola write con tutto dentro: sei comandi in un pacchetto invece di
-    // sei scambi separati. I livelli si chiedono anche a trasmettitore
-    // fermo, e non e' uno spreco: e' proprio cosi' che il primo valore arriva
-    // INSIEME al primo "PTT alto" invece che un giro dopo. A riposo il server
-    // risponde "non disponibile" e la risposta e' di pochi byte.
-    if (m_rigMetersOn)
-        m_cat->write("t\n"
-                     "+f\n"
-                     "+\\get_level RFPOWER_METER_WATTS\n"
-                     "+\\get_level SWR\n"
-                     "+\\get_level ALC\n"
-                     "+\\get_level STRENGTH\n");
-    else
-        m_cat->write("t\n"
-                     "+f\n");
+    double const hz = m_link->frequencyHz();
+    if (hz > 0.0 && m_rigFreqHz != hz) { m_rigFreqHz = hz; cambiato = true; }
 
-    m_pollInVolo = true;
+    // S-meter: vale solo in ricezione, e la sua bandiera arriva dal filo.
+    bool const sVeri = m_link->hasSMeter();
+    int const sDb = qRound(m_link->sMeterDbm());
+    if (m_strengthVeri != sVeri || (sVeri && m_rigStrengthDb != sDb)) {
+        m_strengthVeri = sVeri;
+        m_rigStrengthDb = sVeri ? sDb : 0;
+        cambiato = true;
+    }
+
+    // I tre di trasmissione. meterVeri resta la bandiera unica che il quadrante
+    // gia' conosce: e' vera quando la potenza c'e', perche' senza quella le
+    // altre due non hanno un contesto in cui significare qualcosa.
+    if (m_rigMetersOn) {
+        bool const pVeri = m_link->hasForwardPower();
+        double const w = m_link->forwardPowerW();
+        if (m_meterVeri != pVeri || (pVeri && m_rigWatt != w)) {
+            m_meterVeri = pVeri;
+            m_rigWatt = pVeri ? w : 0.0;
+            cambiato = true;
+        }
+        double const ros = m_link->hasSwr() ? m_link->swr() : 1.0;
+        if (m_rigRos != ros) { m_rigRos = ros; cambiato = true; }
+
+        // ALC: sul filo e' una percentuale, sul frontalino la scala 0-255 che
+        // l'ago si aspetta. La conversione sta qui e in nessun altro posto.
+        int const alc = m_link->hasAlc()
+                            ? qBound(0, qRound(m_link->alcPct() * 2.55), 255)
+                            : 0;
+        if (m_rigAlc != alc) { m_rigAlc = alc; cambiato = true; }
+    }
+
+    // Gli strumenti del finale: ognuno con la sua bandiera, nessuna scala da
+    // convertire — arrivano nelle unita' in cui si leggono.
+    auto const posa = [&cambiato](bool ok, double v, bool& veri, double& dest) {
+        if (veri != ok || (ok && dest != v)) {
+            veri = ok;
+            dest = ok ? v : 0.0;
+            cambiato = true;
+        }
+    };
+    posa(m_link->hasDrainVoltage(),  m_link->drainVoltage(),    m_vdVeri,     m_rigVd);
+    posa(m_link->hasDrainCurrent(),  m_link->drainCurrent(),    m_idVeri,     m_rigId);
+    posa(m_link->hasPaTemperature(), m_link->paTemperature(),   m_tempVeri,   m_rigTemp);
+    posa(m_link->hasCompression(),   m_link->compressionDb(),   m_compVeri,   m_rigComp);
+    posa(m_link->hasPowerSetting(),  m_link->powerSettingPct(), m_pwrSetVeri, m_rigPwrSet);
+
+    // Il PTT per ultimo: quando scende azzera i misuratori di trasmissione, e
+    // farlo prima di averli aggiornati cancellerebbe la lettura appena arrivata.
+    setPttState(m_link->ptt());
+
+    if (cambiato) {
+        valutaAllarmeSwr();
+        emit rigCtlChanged();
+    }
 }
 
 void MeterBridge::setPttState(bool active)
@@ -420,140 +439,6 @@ void MeterBridge::resetTxMeters()
         m_rigAlc = 0;
         m_meterVeri = false;
         m_swrAlarmAttivo = false;
-        emit rigCtlChanged();
-    }
-}
-
-void MeterBridge::onCatReadyRead()
-{
-    if (!m_cat) return;
-    // Qualunque cosa sia arrivata, il server e' vivo e il giro e' chiuso: il
-    // prossimo puo' partire.
-    m_pollInVolo = false;
-    m_ultimaRisposta.restart();
-    parseCatLines(m_cat->readAll());
-}
-
-// Interpreta le righe di risposta del server CAT condiviso.
-void MeterBridge::parseCatLines(const QByteArray& data)
-{
-    m_catBuf += data;
-    bool changed = false;
-    int nl;
-    while ((nl = m_catBuf.indexOf('\n')) >= 0) {
-        QByteArray const line = m_catBuf.left(nl).trimmed();
-        m_catBuf.remove(0, nl + 1);
-        if (line.isEmpty()) continue;
-
-        if (line.startsWith("RPRT")) {
-            // Se a mancare e' l'S-meter, si smette di dichiararlo valido:
-            // meglio due trattini che l'ultimo valore buono rimasto li'.
-            if (m_livelloAtteso == QLatin1String("STRENGTH") && m_strengthVeri) {
-                m_strengthVeri = false;
-                changed = true;
-            }
-            // Errore riferito al livello appena annunciato: la misura non c'e'
-            // (a riposo, o perche' la radio non la fornisce). Si dimentica
-            // l'attesa, altrimenti il prossimo valore finirebbe nel campo
-            // sbagliato.
-            m_livelloAtteso.clear();
-            continue;
-        }
-
-        // Risposte estese di \get_level (dal server Decodium 1.0.565): due
-        // righe, prima il nome del livello e poi il valore. La riga del valore,
-        // da sola, non dice a cosa si riferisce: si tiene da parte il nome.
-        if (line.startsWith("get_level:")) {
-            m_livelloAtteso = QString::fromLatin1(line.mid(10)).trimmed();
-            continue;
-        }
-        // La frequenza. Il server CAT di Decodium risponde a "f" con il numero
-        // nudo anche quando lo si chiede in forma estesa (+f): il prefisso lo
-        // onora per i livelli, non per questo comando. Quindi la si riconosce
-        // per quello che e' — una riga di sole cifre, e grande: un numero
-        // simile non puo' essere ne' lo stato del PTT ne' un livello, che
-        // arrivano sempre annunciati da una riga "get_level:".
-        if (m_livelloAtteso.isEmpty() && line.size() >= 5) {
-            bool tuttoCifre = true;
-            for (char c : line) {
-                if (c < '0' || c > '9') { tuttoCifre = false; break; }
-            }
-            if (tuttoCifre) {
-                bool okf = false;
-                double const hz = QString::fromLatin1(line).toDouble(&okf);
-                if (okf && hz > 10000.0) {
-                    if (!qFuzzyCompare(hz, m_rigFreqHz)) {
-                        m_rigFreqHz = hz;
-                        changed = true;
-                    }
-                    continue;
-                }
-            }
-        }
-
-        // Forma estesa, se un giorno il server la usasse anche per la
-        // frequenza: si accetta comunque, costa due righe.
-        if (line.startsWith("Frequency:")) {
-            bool okf = false;
-            double const hz = QString::fromLatin1(line.mid(10)).trimmed().toDouble(&okf);
-            if (okf && hz > 0 && !qFuzzyCompare(hz, m_rigFreqHz)) {
-                m_rigFreqHz = hz;
-                changed = true;
-            }
-            continue;
-        }
-
-        if (line.startsWith("Level Value:")) {
-            bool okv = false;
-            double const val = QString::fromLatin1(line.mid(12)).trimmed().toDouble(&okv);
-            if (okv) {
-                if (m_livelloAtteso == QLatin1String("RFPOWER_METER_WATTS")) {
-                    m_rigWatt = val; changed = true;
-                } else if (m_livelloAtteso == QLatin1String("SWR")) {
-                    m_rigRos = val >= 1.0 ? val : 1.0; changed = true;
-                } else if (m_livelloAtteso == QLatin1String("STRENGTH")) {
-                    // Hamlib lo da' in dB rispetto a S9: -54 e' S0, 0 e' S9,
-                    // +20 e' S9+20. Si tiene com'e', perche' e' la scala che
-                    // l'operatore legge sulla radio.
-                    //
-                    // Questo NON alza meterVeri: quella bandiera dice che i
-                    // misuratori di TRASMISSIONE hanno una lettura vera, ed e'
-                    // cio' su cui il quadrante decide se mostrare potenza e
-                    // ROS o due trattini. L'S-meter e' l'unico livello che
-                    // risponde anche a trasmettitore fermo: alzandola avrebbe
-                    // fatto comparire "SWR 1.00" e la prima tacca accesa
-                    // mentre non si trasmetteva, cioe' una misura perfetta che
-                    // nessuno aveva misurato.
-                    m_rigStrengthDb = qRound(val);
-                    m_strengthVeri = true;
-                    changed = true;
-                    m_livelloAtteso.clear();
-                    continue;
-                } else if (m_livelloAtteso == QLatin1String("ALC")) {
-                    // Hamlib lo da' normalizzato 0..1: si riporta sulla scala
-                    // 0-255 che il frontalino si aspetta, la stessa dell'ago
-                    // fisico del rig.
-                    m_rigAlc = qBound(0, qRound(val * 255.0), 255); changed = true;
-                }
-                m_meterVeri = true;
-            }
-            m_livelloAtteso.clear();
-            continue;
-        }
-
-        // La sola risposta rimasta e' quella al poll del PTT ("t"): "0" o "1".
-        // Si accetta solo se NON si sta aspettando il valore di un livello,
-        // altrimenti un livello che valesse esattamente 0 o 1 verrebbe
-        // scambiato per lo stato del trasmettitore.
-        if (m_livelloAtteso.isEmpty() && (line == "0" || line == "1")) {
-            // setPttState emette gia' di suo quando lo stato cambia davvero:
-            // segnare anche 'changed' farebbe partire due volte la stessa
-            // notifica, e con essa tutte le rivalutazioni del quadrante.
-            setPttState(line == "1");
-        }
-    }
-    if (changed) {
-        valutaAllarmeSwr();
         emit rigCtlChanged();
     }
 }

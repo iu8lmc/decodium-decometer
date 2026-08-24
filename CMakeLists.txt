@@ -9,9 +9,9 @@ set(DECOMETER_VERSION "1.1.0")
 
 # Decometer standalone (Android + iOS): SOLO il frontalino RF di Decodium 4 e
 # il client di rete che lo alimenta. Nessun decoder, nessun FFTW/Boost/Opus,
-# nessuna seriale: legge potenza/ROS/ALC dal server CAT condiviso di Decodium
-# 4 (o da un qualunque server compatibile col protocollo rigctl di Hamlib) via
-# TCP, in rete locale. E' per questo che il progetto sta in una cartella a
+# nessuna seriale: legge gli strumenti della radio dal gateway DecoPort di
+# Decodium 4, in rete locale — che si annuncia da se', quindi non c'e' un
+# indirizzo da sapere a memoria, ed e' autenticato. E' per questo che il progetto sta in una cartella a
 # se', separata da decodium-mobile: quell'app porta con se' tutto il motore di
 # decodifica, che qui non serve a nulla e appesantirebbe solo il pacchetto.
 
@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network)
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -31,7 +31,19 @@ qt_add_executable(decometer
     DecodeFeed.hpp
     SpotFeed.cpp
     SpotFeed.hpp
+    # Il client DecoPort, copiato da C:\decoport e non incluso da li'.
+    # Un add_subdirectory con percorso assoluto compilerebbe solo su questa
+    # macchina, e un'app che si costruisce anche per Android e iOS deve poter
+    # partire da un albero solo. La copia va riallineata quando il protocollo
+    # cambia: e' il prezzo, ed e' scritto qui perche' non si dimentichi.
+    decoport/DecoPortPacket.cpp
+    decoport/DecoPortPacket.h
+    decoport/DecoPortLink.cpp
+    decoport/DecoPortLink.h
+    decoport/RadioLink.h
 )
+
+target_include_directories(decometer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/decoport)
 
 qt_add_qml_module(decometer
     URI Decometer
@@ -40,7 +52,7 @@ qt_add_qml_module(decometer
 )
 
 target_link_libraries(decometer PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Network
 )
 
 # La versione arriva fin dentro il QML, che la mostra nei contatti.
@@ -58,7 +70,7 @@ if(ANDROID)
         # Il codice di versione e' un numero che sale e basta: il negozio non
         # accetta due volte lo stesso, e non si torna indietro. Va alzato a
         # OGNI pacchetto caricato, anche quando il nome resta uguale.
-        QT_ANDROID_VERSION_CODE 2
+        QT_ANDROID_VERSION_CODE 3
         QT_ANDROID_VERSION_NAME "${DECOMETER_VERSION}"
         QT_ANDROID_TARGET_SDK_VERSION 36
         QT_ANDROID_MIN_SDK_VERSION 24

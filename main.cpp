@@ -1,6 +1,7 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickStyle>
 
 #include "DecodeFeed.hpp"
 #include "MeterBridge.hpp"
@@ -23,6 +24,21 @@ int main(int argc, char* argv[])
 #endif
 
     QGuiApplication app(argc, argv);
+
+    // Lo stile si sceglie qui, e non e' un gusto: e' la condizione perche' le
+    // personalizzazioni dell'interfaccia esistano davvero. Gli stili nativi —
+    // quello di Windows, e su Android il Material — rifiutano di farsi
+    // riscrivere fondo e contenuto dei controlli, e lo dicono a runtime:
+    // "The current style does not support customization of this control".
+    // Il risultato e' che tasti e campi disegnati a mano venivano ignorati e
+    // tornavano chiari su un fondo nero, illeggibili, in modo diverso su
+    // ciascun sistema.
+    //
+    // Basic li lascia disegnare tutti, e su un frontalino disegnato a mano e'
+    // quello che serve: lo strumento deve avere lo stesso aspetto ovunque,
+    // perche' e' lo stesso strumento.
+    if (qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE"))
+        QQuickStyle::setStyle(QStringLiteral("Basic"));
     app.setOrganizationName(QStringLiteral("Decodium"));
     app.setApplicationName(QStringLiteral("Decometer"));
     // Da qui la legge il QML come Qt.application.version: una versione scritta

@@ -146,7 +146,11 @@ Item {
     function effFs() { return fsArr[rangeIdx] }
 
     property int  screenIdx: 0
-    readonly property int screenCount: 4
+    // Cinque pagine: potenza, adattamento, pilotaggio, segnale e finale.
+    // L'ultima esiste da quando il protocollo porta anche gli strumenti
+    // del PA: tensione, corrente, temperatura, compressione e la
+    // posizione della manopola.
+    readonly property int screenCount: 5
 
     // HOLD: le letture restano ferme dove sono. Su uno strumento da tavolo
     // serve a leggere con comodo; su un telefono serve di piu', perche' lo si
@@ -650,6 +654,31 @@ Item {
                                        ? (bridge.rigFreqHz / 1e6).toFixed(3) : "——"
                                 unit: "MHz"
                             }
+
+                            // schermata 5 — finale. Qui i due trattini sono la
+                            // regola, non l'eccezione: pochi apparati danno
+                            // tutti e tre i sensori, e chi non li ha non deve
+                            // vedere uno zero al loro posto. Uno zero su una
+                            // tensione di alimentazione vuol dire alimentatore
+                            // spento, che e' un guasto, non un dato mancante.
+                            Readout {
+                                visible: dm.screenIdx === 4
+                                tag: "Vd"; tint: dm.colCyan
+                                value: bridge.vdVeri ? bridge.rigVd.toFixed(1) : "——"
+                                unit: "V"
+                            }
+                            Readout {
+                                visible: dm.screenIdx === 4
+                                tag: "Id"; tint: dm.colAmber
+                                value: bridge.idVeri ? bridge.rigId.toFixed(2) : "——"
+                                unit: "A"
+                            }
+                            Readout {
+                                visible: dm.screenIdx === 4
+                                tag: "TEMP"; valueSize: 22
+                                value: bridge.tempVeri ? bridge.rigTemp.toFixed(1) : "——"
+                                unit: "\u00B0C"
+                            }
                         }
 
                         // Impedenza: si dichiara cosa e' noto e cosa no. Dal solo
@@ -664,6 +693,7 @@ Item {
                                 Text {
                                     text: dm.screenIdx === 2 ? qsTr("TX TIME")
                                           : dm.screenIdx === 3 ? qsTr("BAND")
+                                          : dm.screenIdx === 4 ? qsTr("PA")
                                           : qsTr("IMPEDANCE")
                                     font.pixelSize: 9; font.letterSpacing: 1; font.family: "monospace"
                                     color: dm.colDim
@@ -711,6 +741,44 @@ Item {
                                     visible: dm.screenIdx === 3
                                     text: dm.sValido ? qsTr("RX SIGNAL")
                                                      : (dm.txOn ? qsTr("TRANSMITTING") : qsTr("NO S-METER"))
+                                    width: 116
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: 8
+                                    color: dm.colDim
+                                }
+                                // Pagina del finale: la potenza dissipata la
+                                // si stima da tensione e corrente, ma solo se
+                                // ci sono ENTRAMBE — con una sola delle due il
+                                // prodotto non esiste, e mostrarne meta'
+                                // sarebbe peggio che non mostrarlo.
+                                Text {
+                                    visible: dm.screenIdx === 4
+                                    text: (bridge.vdVeri && bridge.idVeri)
+                                          ? (bridge.rigVd * bridge.rigId).toFixed(0) + " W DC"
+                                          : "— W DC"
+                                    font.pixelSize: 20; font.bold: true; font.family: "monospace"
+                                    color: dm.colCyan
+                                }
+                                Text {
+                                    visible: dm.screenIdx === 4
+                                    text: bridge.compVeri
+                                          ? "COMP " + bridge.rigComp.toFixed(1) + " dB"
+                                          : qsTr("COMP —")
+                                    font.pixelSize: 13; font.family: "monospace"
+                                    color: "#9FB3BC"
+                                }
+                                Text {
+                                    visible: dm.screenIdx === 4
+                                    text: bridge.pwrSetVeri
+                                          ? "SET " + Math.round(bridge.rigPwrSet) + "%"
+                                          : qsTr("SET —")
+                                    font.pixelSize: 13; font.family: "monospace"
+                                    color: "#9FB3BC"
+                                }
+                                Text {
+                                    visible: dm.screenIdx === 4 && !bridge.vdVeri
+                                             && !bridge.idVeri && !bridge.tempVeri
+                                    text: qsTr("this rig reports no PA sensors")
                                     width: 116
                                     wrapMode: Text.WordWrap
                                     font.pixelSize: 8

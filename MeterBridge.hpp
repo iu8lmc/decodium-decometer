@@ -8,13 +8,20 @@
 #include <QString>
 #include <QTimer>
 
-class QTcpSocket;
+class DecoPortLink;
+class DecoPortDiscovery;
 
 // Ponte CAT minimo per Decometer standalone: SOLO lettura, SOLO in rete
 // locale, SOLO i tre misuratori di trasmissione. Non decodifica, non
-// trasmette, non tocca la seriale — parla in TCP col server CAT condiviso
-// di Decodium 4 (porta 4533) o con un qualunque altro server compatibile
-// col protocollo rigctl di Hamlib (rigctld, netrigctl).
+// trasmette, non tocca la seriale — parla DecoPort col gateway di Decodium 4
+// (UDP, porta 5559), che si annuncia da se' in rete locale sulla 5560.
+//
+// Prima parlava rigctl in TCP con la CAT condivisa sulla 4533. Quella porta
+// pero' Decodium la apre solo su 127.0.0.1: dal telefono la connessione veniva
+// rifiutata sempre, per costruzione, e il quadrante non poteva funzionare.
+// DecoPort ascolta su tutte le interfacce, si annuncia da solo — quindi non
+// c'e' piu' un indirizzo da digitare a memoria — ed e' autenticato, il che su
+// una porta che espone una radio non e' un dettaglio.
 //
 // La superficie di proprieta' e il nome dei campi ricalcano DELIBERATAMENTE
 // quelli di AppBridge in decodium-mobile/androidapp: e' quel bridge che
@@ -52,6 +59,26 @@ class MeterBridge : public QObject
     Q_PROPERTY(QString rigBand READ rigBand NOTIFY rigCtlChanged)
     // S-meter, in ricezione. Hamlib lo da' in dB rispetto a S9: negativo
     // sotto S9 (-6 dB per unita' S), positivo sopra.
+    // Gli strumenti del finale. Ognuno con il suo "veri", come gia' fanno le
+    // misure di trasmissione: senza, uno zero e un silenzio si somiglierebbero.
+    Q_PROPERTY(double rigVd READ rigVd NOTIFY rigCtlChanged)
+    Q_PROPERTY(bool vdVeri READ vdVeri NOTIFY rigCtlChanged)
+    Q_PROPERTY(double rigId READ rigId NOTIFY rigCtlChanged)
+    Q_PROPERTY(bool idVeri READ idVeri NOTIFY rigCtlChanged)
+    Q_PROPERTY(double rigTemp READ rigTemp NOTIFY rigCtlChanged)
+    Q_PROPERTY(bool tempVeri READ tempVeri NOTIFY rigCtlChanged)
+    Q_PROPERTY(double rigComp READ rigComp NOTIFY rigCtlChanged)
+    Q_PROPERTY(bool compVeri READ compVeri NOTIFY rigCtlChanged)
+    Q_PROPERTY(double rigPwrSet READ rigPwrSet NOTIFY rigCtlChanged)
+    Q_PROPERTY(bool pwrSetVeri READ pwrSetVeri NOTIFY rigCtlChanged)
+
+    // DecoPort non ha una modalita' in chiaro: senza chiave il gateway non si
+    // accende e il client non si collega. Quindi la chiave e' parte delle
+    // impostazioni quanto l'indirizzo, e si ricorda allo stesso modo.
+    Q_PROPERTY(QString authKey READ authKey WRITE setAuthKey NOTIFY lastEndpointChanged)
+    // Le radio che si sono annunciate: host, porta, etichetta, se il CAT e' su.
+    Q_PROPERTY(QVariantList radiosTrovate READ radiosTrovate NOTIFY radiosTrovateChanged)
+
     Q_PROPERTY(int rigStrengthDb READ rigStrengthDb NOTIFY rigCtlChanged)
     Q_PROPERTY(bool strengthVeri READ strengthVeri NOTIFY rigCtlChanged)
 
@@ -87,7 +114,8 @@ public:
 
     bool catConnected() const { return m_catConnected; }
     QString catStatus() const { return m_catStatus; }
-    QString rigModel() const { return QString(); }   // il server condiviso non lo dichiara
+    // Ora la radio si presenta: DecoPort porta l'etichetta nel contesto.
+    QString rigModel() const { return m_rigModel; }
 
     bool rigMetersOn() const { return m_rigMetersOn; }
     void setRigMetersOn(bool on);
@@ -97,6 +125,21 @@ public:
     double rigWatt() const { return m_rigWatt; }
     double rigRos() const { return m_rigRos; }
     bool meterVeri() const { return m_meterVeri; }
+
+    double rigVd() const { return m_rigVd; }
+    bool vdVeri() const { return m_vdVeri; }
+    double rigId() const { return m_rigId; }
+    bool idVeri() const { return m_idVeri; }
+    double rigTemp() const { return m_rigTemp; }
+    bool tempVeri() const { return m_tempVeri; }
+    double rigComp() const { return m_rigComp; }
+    bool compVeri() const { return m_compVeri; }
+    double rigPwrSet() const { return m_rigPwrSet; }
+    bool pwrSetVeri() const { return m_pwrSetVeri; }
+
+    QString authKey() const { return m_authKey; }
+    void setAuthKey(const QString& k);
+    QVariantList radiosTrovate() const;
 
     double rigFreqHz() const { return m_rigFreqHz; }
     QString rigBand() const;
@@ -141,13 +184,14 @@ signals:
     void txActiveChanged();
     void lastEndpointChanged();
     void safeAreaChanged();
+    void radiosTrovateChanged();
 
 private slots:
-    void onCatReadyRead();
-    void onPoll();
+    // Un solo posto dove il contesto ricevuto diventa lo stato del quadrante.
+    void onLinkState();
+    void onLinkLinked();
 
 private:
-    void parseCatLines(const QByteArray& data);
     void setPttState(bool active);
     void resetTxMeters();
     void applyKeepScreenOn();
@@ -184,8 +228,8 @@ private:
     // mano, ma senza doverci pensare mentre trasmette.
     static constexpr int kSilenzioMax = 3000;
 
-    QTcpSocket* m_cat {nullptr};
-    QByteArray m_catBuf;
+    DecoPortLink* m_link {nullptr};
+    DecoPortDiscovery* m_scoperta {nullptr};
     // UN SOLO ciclo veloce, non due. La prima versione interrogava il PTT una
     // volta al secondo e solo DOPO averlo visto alto cominciava a chiedere i
     // livelli: fino a 1,35 s fra il momento in cui si premeva il tasto e il
@@ -193,15 +237,11 @@ private:
     // la potenza MENTRE si trasmette, un ritardo simile lo rende inutile.
     // Il server risponde in circa 3 ms e legge da memoria senza toccare la
     // seriale, quindi chiedere tutto insieme e spesso non costa quasi nulla.
-    QTimer m_poll;
     QTimer m_ritenta;      // riconnessione dopo una caduta
-    QTimer m_attesaConn;   // guardia sul singolo tentativo di connessione
     // Il giro precedente non ha ancora risposto: non se ne accavalla un altro.
     // A 80 ms su una rete che rallenta le domande si accumulerebbero, e le
     // risposte arriverebbero con un ritardo che cresce da solo — su un
     // misuratore vuol dire un ago che indica il passato.
-    bool m_pollInVolo {false};
-    QElapsedTimer m_ultimaRisposta;
 
     bool m_catConnected {false};
     QString m_catStatus;
@@ -212,11 +252,19 @@ private:
     double m_rigWatt {0.0};
     double m_rigRos {1.0};
     bool m_meterVeri {false};
-    QString m_livelloAtteso;      // nome del livello di cui si aspetta "Level Value:"
 
     double m_rigFreqHz {0.0};
     int m_rigStrengthDb {0};
     bool m_strengthVeri {false};
+    QString m_rigModel;
+
+    double m_rigVd {0.0};      bool m_vdVeri {false};
+    double m_rigId {0.0};      bool m_idVeri {false};
+    double m_rigTemp {0.0};    bool m_tempVeri {false};
+    double m_rigComp {0.0};    bool m_compVeri {false};
+    double m_rigPwrSet {0.0};  bool m_pwrSetVeri {false};
+
+    QString m_authKey;
 
     double m_swrAlarmSoglia {2.5};
     bool m_swrAlarmVibra {true};
@@ -238,7 +286,7 @@ private:
     double m_safeRight {0.0};
 
     QString m_lastHost;
-    int m_lastPort {4533};
+    int m_lastPort {5559};
     QSettings m_settings;
 };
 
