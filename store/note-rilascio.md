@@ -1,214 +1,213 @@
-# Note di rilascio 1.1.0 — quindici lingue
+# Note di rilascio 1.2.0 — quindici lingue
 
 Da incollare nel Play Console, in **Versione di produzione → Note di versione**,
-una per ogni lingua della scheda. Il limite è 500 caratteri per lingua: tutte
-stanno sotto i 440.
+una per ogni lingua della scheda. Il limite è 500 caratteri per lingua: la più
+lunga qui sta a 497.
 
 Se il Console chiede il formato con i tag di lingua — quello che permette di
 incollare tutte le traduzioni in una volta sola — il file già pronto è
-**`store/note-rilascio-console.txt`**:
+**`store/note-rilascio-console.txt`**, e contiene le stesse quindici lingue coi
+codici del negozio (`it-IT`, `en-US`, `de-DE`, `fr-FR`, `es-ES`, `ca`, `nl-NL`,
+`da-DK`, `hu-HU`, `ro`, `lv`, `ru-RU`, `ja-JP`, `zh-CN`, `zh-TW`).
 
-```
-<it-IT>
-Prima pubblicazione.
-...
-</it-IT>
-<en-US>
-First release.
-...
-</en-US>
-```
+Fino alla 1.1.0 quel file ne conteneva **dodici**: catalano, rumeno e lettone
+erano elencati qui ma non c'erano là dentro, e chi incollava si ritrovava tre
+lingue senza note senza accorgersene. Ora ci sono tutte e quindici.
 
-Contiene le stesse quindici lingue con i codici che usa il negozio (`it-IT`,
-`en-US`, `de-DE`, `fr-FR`, `es-ES`, `ca`, `nl-NL`, `da-DK`, `hu-HU`, `ro`,
-`lv`, `ru-RU`, `ja-JP`, `zh-CN`, `zh-TW`).
-
-Le lingue sono le stesse quindici di Decodium 4, così chi conosce il programma
-da tavolo trova l'app nella lingua in cui già lo usa.
+Le lingue sono le stesse di Decodium 4, così chi conosce il programma da tavolo
+trova l'app nella lingua in cui già lo usa.
 
 Sul termine tecnico: dove i radioamatori di quella lingua dicono SWR si è
-lasciato SWR, dove dicono altro (ROS in italiano, ROE in spagnolo e catalano,
-КСВ in russo, 驻波比 in cinese) si è usato il loro. Tradurre "rapporto di onde
-stazionarie" alla lettera avrebbe prodotto una sigla che nessuno cerca.
+lasciato SWR, dove dicono altro (ROS in italiano e rumeno, ROE in spagnolo e
+catalano) si è usato il loro.
+
+## Cosa dicono, in sostanza
+
+Quattro cose, nell'ordine in cui contano per chi aggiorna:
+
+1. **Il collegamento si fa da solo** — il PC si annuncia sulla rete e la radio
+   compare in un elenco. Non c'è più un indirizzo IP da scrivere a mano.
+2. **La pagina del finale** — tensione, corrente, compressione e manopola, per
+   le radio che le riportano.
+3. **L'analizzatore d'antenna** — ed è la novità vera, perché è anche la prima
+   funzione dell'app che **trasmette**. Le note lo dicono esplicitamente in
+   ogni lingua: non è una cosa da lasciare implicita in una nota di versione.
+4. **Il vetro nero e le liste che tornano in cima** — i due difetti visibili
+   segnalati sulla 1.1.0.
 
 ---
 
 ## it — Italiano
 
 ```
-Prima pubblicazione.
+Si collega da solo: il PC si annuncia in rete, tocchi la radio nell'elenco e scrivi la password. Niente più indirizzi IP.
 
-Il quadrante RF di Decodium 4 sul telefono: potenza diretta, ROS e ALC letti dal PC attraverso la rete locale, con lo stesso strumento del programma da tavolo.
+Nuova pagina del finale: tensione, corrente, compressione e posizione della manopola.
 
-Inoltre: le decodifiche distinte per modo, gli spot del cluster DX, S-meter e frequenza, il fermo immagine e l'allarme di ROS che fa vibrare il telefono.
+Nuovo analizzatore d'antenna: raccoglie ROS e frequenza mentre operi, trova la risonanza e dà la reattanza col segno, cioè se accorciare o allungare. Con carta di Smith e uno sweep che — solo se lo avvii tu — trasmette.
 
-Serve Decodium 4 (1.0.568 o successiva) sul PC, sulla stessa rete WiFi.
+Sfondo a vetro nero sui tablet. Le liste tornano in cima da sole.
 ```
+*(496 caratteri)*
 
 ## en — English
 
 ```
-First release.
+It connects on its own: the PC announces itself, you tap the radio in a list and type the password. No more IP addresses.
 
-The RF meter of Decodium 4 on your phone: forward power, SWR and ALC read from the PC over your local network, with the same instrument as the desktop program.
+New power-amplifier page: drain voltage and current, compression, power knob.
 
-Also: decodes sorted by mode, DX cluster spots, S-meter and frequency, HOLD, and an SWR alarm that vibrates the phone.
+New antenna analyser: it collects SWR and frequency while you operate, finds resonance and gives the reactance with its sign — whether to shorten or lengthen. With a Smith chart and a sweep that transmits, only if you start it.
 
-Requires Decodium 4 (1.0.568 or later) on the PC, on the same WiFi network.
+Black-glass background on tablets. Lists scroll back on their own.
 ```
+*(497 caratteri)*
 
 ## de — Deutsch
 
 ```
-Erste Veröffentlichung.
+Verbindet sich selbst: Der PC meldet sich im Netz, Sie tippen das Funkgerät in der Liste an und geben das Kennwort ein. Keine IP-Adressen mehr.
 
-Das HF-Messgerät von Decodium 4 auf dem Telefon: Vorwärtsleistung, SWR und ALC werden vom PC über das lokale Netzwerk gelesen — dasselbe Instrument wie im Desktop-Programm.
+Neue Endstufenseite: Spannung, Strom, Kompression, Leistungsregler.
 
-Außerdem: Dekodierungen nach Betriebsart, DX-Cluster-Spots, S-Meter und Frequenz, HOLD sowie ein SWR-Alarm, der das Telefon vibrieren lässt.
+Neuer Antennenanalysator: sammelt SWR und Frequenz im Betrieb, findet die Resonanz und nennt die Reaktanz mit Vorzeichen — kürzen oder verlängern. Mit Smith-Diagramm und einem Sweep, der nur auf Ihren Befehl sendet.
 
-Erfordert Decodium 4 (ab 1.0.568) auf dem PC im selben WLAN.
+Schwarzglas-Hintergrund auf Tablets.
 ```
+*(467 caratteri)*
 
 ## fr — Français
 
 ```
-Première publication.
+Il se connecte tout seul : le PC s'annonce sur le réseau, vous touchez la radio dans une liste et saisissez le mot de passe. Plus d'adresse IP à retenir.
 
-Le mesureur HF de Decodium 4 sur votre téléphone : puissance directe, ROS et ALC lus depuis le PC via le réseau local, avec le même instrument que le programme de bureau.
+Nouvelle page de l'ampli : tension, courant, compression, bouton de puissance.
 
-Également : les décodages classés par mode, les spots du cluster DX, S-mètre et fréquence, la fonction HOLD et une alarme de ROS qui fait vibrer le téléphone.
-
-Nécessite Decodium 4 (1.0.568 ou ultérieur) sur le PC, sur le même réseau WiFi.
+Nouvel analyseur d'antenne : il collecte ROS et fréquence pendant que vous opérez, trouve la résonance et donne la réactance avec son signe — raccourcir ou allonger. Avec abaque de Smith et un balayage qui émet, seulement si vous le lancez.
 ```
+*(475 caratteri)*
 
 ## es — Español
 
 ```
-Primera publicación.
+Se conecta solo: el PC se anuncia en la red, tocas la radio en una lista y escribes la contraseña. No más direcciones IP de memoria.
 
-El medidor de RF de Decodium 4 en el teléfono: potencia directa, ROE y ALC leídos desde el PC a través de la red local, con el mismo instrumento del programa de escritorio.
+Nueva página del amplificador: tensión, corriente, compresión y mando de potencia.
 
-Además: las decodificaciones separadas por modo, los spots del clúster DX, S-metro y frecuencia, la retención de lectura y una alarma de ROE que hace vibrar el teléfono.
-
-Requiere Decodium 4 (1.0.568 o posterior) en el PC, en la misma red WiFi.
+Nuevo analizador de antena: recoge ROE y frecuencia mientras operas, halla la resonancia y da la reactancia con su signo, es decir si acortar o alargar. Con carta de Smith y un barrido que transmite, solo si lo inicias tú.
 ```
+*(440 caratteri)*
 
 ## ca — Català
 
 ```
-Primera publicació.
+Es connecta sol: el PC s'anuncia a la xarxa, toques la ràdio en una llista i escrius la contrasenya. Ja no cal recordar adreces IP.
 
-El mesurador de RF de Decodium 4 al telèfon: potència directa, ROE i ALC llegits des del PC a través de la xarxa local, amb el mateix instrument del programa d'escriptori.
+Nova pàgina de l'amplificador: tensió, corrent, compressió i el comandament de potència.
 
-A més: les descodificacions separades per mode, els spots del clúster DX, S-metre i freqüència, la retenció de lectura i una alarma de ROE que fa vibrar el telèfon.
-
-Requereix Decodium 4 (1.0.568 o posterior) al PC, a la mateixa xarxa WiFi.
+Nou analitzador d'antena: recull ROE i freqüència mentre operes, troba la ressonància i dóna la reactància amb el seu signe — si cal escurçar o allargar. Amb carta de Smith i un escombrat que transmet, només si l'inicies tu.
 ```
+*(447 caratteri)*
 
 ## nl — Nederlands
 
 ```
-Eerste uitgave.
+Hij verbindt vanzelf: de pc meldt zich op het netwerk, u tikt de set in een lijst aan en typt het wachtwoord. Geen IP-adressen meer.
 
-De HF-meter van Decodium 4 op je telefoon: voorwaartse vermogen, SWR en ALC uitgelezen van de pc via het lokale netwerk, met hetzelfde instrument als het bureaubladprogramma.
+Nieuwe eindtrappagina: spanning, stroom, compressie en de vermogensknop.
 
-Verder: decodes gesorteerd op mode, DX-clusterspots, S-meter en frequentie, HOLD en een SWR-alarm dat de telefoon laat trillen.
-
-Vereist Decodium 4 (1.0.568 of nieuwer) op de pc, op hetzelfde WiFi-netwerk.
+Nieuwe antenneanalysator: verzamelt SWR en frequentie terwijl u werkt, vindt de resonantie en geeft de reactantie met teken — inkorten of verlengen. Met een smithkaart en een sweep die zendt, alleen als u hem start.
 ```
+*(423 caratteri)*
 
 ## da — Dansk
 
 ```
-Første udgivelse.
+Den forbinder selv: pc'en melder sig på nettet, du trykker på radioen i en liste og skriver adgangskoden. Ingen IP-adresser mere.
 
-RF-måleren fra Decodium 4 på telefonen: fremadgående effekt, SWR og ALC aflæst fra pc'en over det lokale netværk, med samme instrument som skrivebordsprogrammet.
+Ny slutttrinsside: spænding, strøm, kompression og effektknappen.
 
-Desuden: afkodninger opdelt efter mode, DX-cluster-spots, S-meter og frekvens, HOLD samt en SWR-alarm, der får telefonen til at vibrere.
-
-Kræver Decodium 4 (1.0.568 eller nyere) på pc'en, på samme WiFi-netværk.
+Ny antenneanalysator: samler SWR og frekvens mens du kører, finder resonansen og angiver reaktansen med fortegn — afkort eller forlæng. Med Smith-diagram og et sweep, der sender, kun hvis du starter det.
 ```
+*(401 caratteri)*
 
 ## hu — Magyar
 
 ```
-Első kiadás.
+Magától kapcsolódik: a PC bejelentkezik a hálózaton, a listában megérinti a rádiót és beírja a jelszót. Nincs több IP-cím.
 
-A Decodium 4 RF-mérője a telefonon: az előremenő teljesítmény, az SWR és az ALC a számítógépről, a helyi hálózaton keresztül — ugyanaz a műszer, mint az asztali programban.
+Új végfok-oldal: feszültség, áram, kompresszió és a teljesítményszabályzó.
 
-Továbbá: a dekódolások módonként csoportosítva, a DX-cluster spotjai, S-méter és frekvencia, HOLD, valamint SWR-riasztás, amely megrezegteti a telefont.
-
-Decodium 4 (1.0.568 vagy újabb) szükséges a számítógépen, azonos WiFi-hálózaton.
+Új antennaanalizátor: üzem közben gyűjti az SWR-t és a frekvenciát, megtalálja a rezonanciát, és előjelesen megadja a reaktanciát — rövidíteni vagy hosszabbítani kell. Smith-diagrammal és adással járó pásztázással, amely csak az Ön parancsára indul.
 ```
+*(449 caratteri)*
 
 ## ro — Română
 
 ```
-Prima publicare.
+Se conectează singur: PC-ul se anunță în rețea, atingi stația în listă și scrii parola. Nu mai sunt adrese IP de reținut.
 
-Instrumentul RF din Decodium 4 pe telefon: puterea directă, ROS și ALC citite de pe calculator prin rețeaua locală, cu același instrument ca în programul de birou.
+Pagină nouă pentru etajul final: tensiune, curent, compresie și butonul de putere.
 
-În plus: decodificările separate pe mod, spoturile din clusterul DX, S-metru și frecvență, funcția HOLD și o alarmă de ROS care face telefonul să vibreze.
-
-Necesită Decodium 4 (1.0.568 sau mai nou) pe calculator, în aceeași rețea WiFi.
+Analizor de antenă nou: adună ROS și frecvența în timp ce lucrezi, găsește rezonanța și dă reactanța cu semnul ei — dacă să scurtezi sau să lungești. Cu diagramă Smith și o baleiere care emite, doar dacă o pornești tu.
 ```
+*(425 caratteri)*
 
 ## lv — Latviešu
 
 ```
-Pirmais laidiens.
+Tas savienojas pats: dators paziņo par sevi tīklā, jūs pieskaraties stacijai sarakstā un ievadāt paroli. IP adreses vairs nav jāatceras.
 
-Decodium 4 RF mērītājs telefonā: tiešā jauda, SVK un ALC, nolasīti no datora pa vietējo tīklu — tas pats instruments, kas galddatora programmā.
+Jauna gala pakāpes lapa: spriegums, strāva, kompresija un jaudas poga.
 
-Turklāt: dekodējumi sadalīti pēc režīma, DX klastera ziņojumi, S-mērītājs un frekvence, HOLD un SVK trauksme, kas liek telefonam vibrēt.
-
-Nepieciešams Decodium 4 (1.0.568 vai jaunāks) datorā, tajā pašā WiFi tīklā.
+Jauns antenas analizators: darba laikā vāc SWR un frekvenci, atrod rezonansi un norāda reaktivitāti ar zīmi — vai saīsināt, vai pagarināt. Ar Smita diagrammu un izvērsi, kas raida tikai tad, ja jūs to sākat.
 ```
+*(417 caratteri)*
 
 ## ru — Русский
 
 ```
-Первый выпуск.
+Подключается сам: компьютер объявляет себя в сети, вы касаетесь трансивера в списке и вводите пароль. Больше не нужно помнить IP-адрес.
 
-Измеритель РЧ из Decodium 4 на телефоне: прямая мощность, КСВ и ALC считываются с компьютера по локальной сети — тот же прибор, что и в настольной программе.
+Новая страница усилителя: напряжение, ток, компрессия и регулятор мощности.
 
-Кроме того: декодирования по видам работы, споты DX-кластера, S-метр и частота, удержание показаний и оповещение о высоком КСВ с вибрацией.
-
-Требуется Decodium 4 (1.0.568 или новее) на компьютере, в той же сети WiFi.
+Новый антенный анализатор: собирает КСВ и частоту во время работы, находит резонанс и даёт реактивность со знаком — укоротить или удлинить. С диаграммой Смита и разверткой, которая передаёт только по вашей команде.
 ```
+*(428 caratteri)*
 
 ## ja — 日本語
 
 ```
-初回リリース。
+自動で接続します。PC がネットワークに自らを知らせ、一覧から無線機を選んでパスワードを入力するだけ。IP アドレスを覚える必要はありません。
 
-Decodium 4 の RF メーターをスマートフォンで。進行波電力、SWR、ALC をローカルネットワーク経由で PC から読み取り、デスクトップ版と同じ計器で表示します。
+終段の新しいページ：電圧、電流、コンプレッション、パワーつまみ。
 
-さらに、モード別のデコード一覧、DX クラスターのスポット、S メーターと周波数、HOLD 機能、SWR 警報（バイブレーションで通知）。
-
-PC 側に Decodium 4（1.0.568 以降）が必要で、同じ WiFi ネットワークに接続してください。
+新しいアンテナ・アナライザー：運用中に SWR と周波数を集め、共振点を求め、リアクタンスを符号つきで示します（短くするか長くするか）。スミス図表と、自分で始めたときだけ送信するスイープ付き。
 ```
+*(203 caratteri)*
 
 ## zh — 简体中文
 
 ```
-首次发布。
+自动连接：电脑在网络中自我通告，您在列表中点选电台并输入密码，无需再记 IP 地址。
 
-将 Decodium 4 的射频表带到手机上：通过局域网从电脑读取正向功率、驻波比和 ALC，与桌面程序使用同一块表盘。
+新增末级页面：电压、电流、压缩和功率旋钮。
 
-此外还有：按模式分类的解码记录、DX 集群点位、S 表与频率、读数保持，以及驻波比过高时手机振动报警。
+新增天线分析仪：在您操作时采集驻波比与频率，找出谐振点，并给出带符号的电抗——告诉您该剪短还是加长。附史密斯圆图，以及仅在您启动时才发射的扫频。
 
-需要电脑上运行 Decodium 4（1.0.568 或更高版本），并连接同一 WiFi 网络。
+平板上采用黑玻璃背景。列表会自动回到顶部。
 ```
+*(162 caratteri)*
 
 ## zh_TW — 繁體中文
 
 ```
-首次發布。
+自動連線：電腦在網路中自我通告，您在清單中點選電台並輸入密碼，不必再記 IP 位址。
 
-將 Decodium 4 的射頻錶帶到手機上：透過區域網路從電腦讀取正向功率、駐波比與 ALC，與桌面程式使用同一個錶盤。
+新增末級頁面：電壓、電流、壓縮與功率旋鈕。
 
-此外還有：依模式分類的解碼記錄、DX 叢集點位、S 錶與頻率、讀數保持，以及駐波比過高時手機震動警報。
+新增天線分析儀：在您操作時採集駐波比與頻率，找出諧振點，並給出帶符號的電抗——告訴您該剪短還是加長。附史密斯圓圖，以及僅在您啟動時才發射的掃頻。
 
-需要電腦上執行 Decodium 4（1.0.568 或更新版本），並連接同一 WiFi 網路。
+平板上採用黑玻璃背景。清單會自動回到頂端。
 ```
+*(162 caratteri)*
